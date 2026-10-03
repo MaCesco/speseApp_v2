@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block c %}
+<form class="card f" method="post" style="margin:0 auto">
+<h1>Nuovo movimento</h1>
+<input type="hidden" name="_t" value="{{ csrf }}">
+<div class="seg">
+<label><input type="radio" name="tipo" value="uscita" checked><span>Uscita</span></label>
+<label><input type="radio" name="tipo" value="entrata"><span>Entrata</span></label>
+</div>
+<input name="importo" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Importo in €" required autofocus style="font-size:28px;font-weight:700">
+<input name="categoria" list="cat" placeholder="Categoria" required>
+<datalist id="cat"></datalist>
+<input name="descrizione" placeholder="Descrizione (facoltativa)">
+<input name="data" type="date" value="{{ oggi }}" required>
+<button>Salva movimento</button>
+</form>
+<script>
+const C={entrata:{{ ENTRATE|tojson }},uscita:{{ USCITE|tojson }}};
+const dl=document.getElementById('cat');
+function fill(){const t=document.querySelector('[name=tipo]:checked').value;dl.innerHTML=C[t].map(c=>`<option value="${c}">`).join('')}
+document.querySelectorAll('[name=tipo]').forEach(r=>r.onchange=fill);fill();
+</script>{% endblock %}

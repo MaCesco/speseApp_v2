@@ -1,0 +1,120 @@
+{% extends "base.html" %}{% block c %}
+<style>.anni label{flex:1 1 72px}.anni span{padding:8px 0}.mp{display:flex;gap:8px;max-width:340px}.mp select{flex:0 0 100px;width:100px;min-width:0}.mp input{flex:1;min-width:0}main{max-width:2000px}.cols,.col{display:grid;gap:16px}.col{min-width:0;align-content:start}.col>.hero{margin:0}@media(min-width:1300px){.cols{grid-template-columns:1fr 1fr;align-items:start}}.grp{border-left:4px solid var(--in)}.sub{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;margin:18px 0 6px;padding-top:16px;border-top:1px solid var(--line)}</style>
+<div class="cols"><div class="col">
+<div class="row"><h1>Dashboard</h1><input type="month" id="mese" aria-label="Mese"></div>
+<section class="hero">
+<div><span>Saldo del mese</span><b id="k3">–</b></div>
+<div><span>Entrate</span><strong id="k1">–</strong></div>
+<div><span>Uscite</span><strong id="k2">–</strong><small id="k4"></small></div>
+</section>
+<div class="grid">
+<div class="card"><h2>Andamento dell'anno <span class="mu" style="font-size:14px;font-weight:400">Tocca un mese per selezionarlo</span></h2><div class="ch"><canvas id="c1"></canvas></div></div>
+<div class="card"><h2>Uscite per categoria</h2><div class="ch"><canvas id="c2"></canvas></div></div>
+<div class="card w"><h2>Budget del mese</h2><div id="bud"></div></div>
+<div class="card w"><h2>Confronto mese su mese</h2>
+<div class="row"><input type="month" id="ma" aria-label="Primo mese"><input type="month" id="mb" aria-label="Secondo mese"></div>
+<p class="mu" id="mm"></p><div class="ch" id="c3b"><canvas id="c3"></canvas></div></div>
+</div>
+</div>
+<div class="col">
+<div class="card w"><h2>Confronto anno su anno</h2>
+<select id="met" aria-label="Dato"><option value="uscita">Uscite</option><option value="entrata">Entrate</option><option value="saldo">Saldo</option></select>
+<div id="boxA" class="anni"></div>
+<div class="ch" style="margin-top:12px"><canvas id="c4"></canvas></div></div>
+<div class="card w grp"><h2>Analisi per voce</h2>
+<select id="vv" aria-label="Voce"></select>
+<div id="boxV" class="anni"></div>
+<h3 class="sub">Confronto anno su anno</h3>
+<p class="mu" id="vt"></p><div class="ch"><canvas id="c5"></canvas></div>
+<h3 class="sub">Andamento cumulato</h3>
+<div class="ch"><canvas id="c6"></canvas></div></div>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+const MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const P=['#4f46e5','#0f9d8a','#e0457b','#f5a524','#0ea5e9','#8b5cf6','#84cc16','#f97316','#14b8a6','#ec4899','#64748b','#eab308'];
+Chart.defaults.color='#68728a';Chart.defaults.borderColor='#14213d12';Chart.defaults.font.family="'DM Sans',sans-serif";
+let D,ch={},ANNI=[];
+const pad=n=>String(n).padStart(2,'0');
+const eur=v=>v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cats=(k,t)=>(D.mesi[k]||{})[t]||{};
+const tot=(k,t)=>Object.values(cats(k,t)).reduce((a,b)=>a+b,0);
+const prev=k=>{const[y,m]=k.split('-').map(Number);return m==1?`${y-1}-12`:`${y}-${pad(m-1)}`};
+function draw(id,cfg){ch[id]&&ch[id].destroy();cfg.options=Object.assign({maintainAspectRatio:false},cfg.options);ch[id]=new Chart(document.getElementById(id),cfg)}
+
+function render(){
+ syncAnni();
+ const k=mese.value,y=k.slice(0,4),e=tot(k,'entrata'),u=tot(k,'uscita'),up=tot(prev(k),'uscita');
+ k1.textContent=eur(e);k2.textContent=eur(u);k3.textContent=eur(e-u);k3.style.color=e-u>=0?'#5eead4':'#ff8fb1';
+ k4.textContent=up?`${u>=up?'▲':'▼'} ${Math.abs((u-up)/up*100).toFixed(0)}% rispetto al mese prima`:'';
+ const serie=(t)=>MESI.map((_,i)=>tot(`${y}-${pad(i+1)}`,t));
+ draw('c1',{type:'bar',data:{labels:MESI,datasets:[{label:'Entrate',data:serie('entrata'),backgroundColor:'#0f9d8a',borderRadius:6},{label:'Uscite',data:serie('uscita'),backgroundColor:'#e0457b',borderRadius:6}]},
+  options:{onClick:(ev,els)=>{if(els.length){mese.value=`${y}-${pad(els[0].index+1)}`;mese.onchange()}},onHover:(ev,els)=>{ev.native.target.style.cursor=els.length?'pointer':'default'}}});
+ const cc=Object.entries(cats(k,'uscita')).sort((a,b)=>b[1]-a[1]);
+ draw('c2',{type:'doughnut',data:{labels:cc.map(x=>x[0]),datasets:[{data:cc.map(x=>x[1]),backgroundColor:P,borderWidth:2,borderColor:'#fff'}]},options:{cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
+ const sp=cats(k,'uscita');
+ bud.innerHTML=Object.entries(D.budget).map(([c,b])=>{const s=sp[c]||0,p=s/b*100;
+  return `<div class="bl"><span>${esc(c)}</span><span class="${p>100?'r':'mu'}">${eur(s)} su ${eur(b)}</span></div><div class="bar"><i style="width:${Math.min(p,100)}%;${p>100?'background:var(--r)':''}"></i></div>`}).join('')||'<p class="mu">Nessun budget impostato. Aggiungilo da Impostazioni.</p>';
+ confrontoMesi();confrontoAnni();confrontoVoce();
+}
+function confrontoMesi(){
+ syncAnni();
+ const A=ma.value,B=mb.value,ca=cats(A,'uscita'),cb=cats(B,'uscita');
+ const n=[...new Set([...Object.keys(ca),...Object.keys(cb)])].sort((x,z)=>(ca[z]||0)+(cb[z]||0)-(ca[x]||0)-(cb[x]||0));
+ mm.textContent=`Uscite totali: ${A} ${eur(tot(A,'uscita'))} · ${B} ${eur(tot(B,'uscita'))}`;
+ c3b.style.height=Math.max(260,n.length*40+60)+'px';
+ draw('c3',{type:'bar',data:{labels:n,datasets:[{label:A,data:n.map(c=>ca[c]||0),backgroundColor:'#4f46e5',borderRadius:4},{label:B,data:n.map(c=>cb[c]||0),backgroundColor:'#f5a524',borderRadius:4}]},options:{indexAxis:'y'}});
+}
+function confrontoAnni(){
+ const t=met.value,ys=anniSel(boxA),col=y=>P[ANNI.indexOf(y)%P.length];
+ const val=(y,i)=>{const k=`${y}-${pad(i+1)}`;return t=='saldo'?tot(k,'entrata')-tot(k,'uscita'):tot(k,t)};
+ draw('c4',{type:'line',data:{labels:MESI,datasets:ys.map(y=>({label:y,data:MESI.map((_,i)=>val(y,i)),borderColor:col(y),backgroundColor:col(y)+'22',fill:ys.length<3,tension:.35,pointRadius:3}))},options:{interaction:{mode:'index',intersect:false}}});
+}
+
+function serieVoce(y){
+ const[t,c]=vv.value.split('|');
+ return MESI.map((_,i)=>{const k=`${y}-${pad(i+1)}`;return c=='*'?tot(k,t):(cats(k,t)[c]||0)});
+}
+function confrontoVoce(){
+ const ys=anniSel(boxV),col=y=>P[ANNI.indexOf(y)%P.length];
+ const oggi=new Date(),mx=y=>y==String(oggi.getFullYear())?oggi.getMonth():11;
+ vt.textContent=ys.length?'Totale annuo: '+ys.map(y=>`${y} ${eur(serieVoce(y).reduce((a,b)=>a+b,0))}`).join(' · '):'Seleziona almeno un anno.';
+ draw('c5',{type:'bar',data:{labels:MESI,datasets:ys.map(y=>({label:y,data:serieVoce(y),backgroundColor:col(y),borderRadius:5}))},options:{interaction:{mode:'index',intersect:false}}});
+ draw('c6',{type:'line',data:{labels:MESI,datasets:ys.map(y=>{let s=0;return{label:y,data:serieVoce(y).map((v,i)=>i>mx(y)?null:(s+=v)),borderColor:col(y),backgroundColor:col(y)+'22',tension:.25,pointRadius:3}})},options:{interaction:{mode:'index',intersect:false}}});
+}
+
+function anniUI(box,cb){
+ box.innerHTML=`<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="x" data-a="tutti">Tutti gli anni</button><button type="button" class="x" data-a="ult">Ultimi 3</button></div><div class="seg" style="flex-wrap:wrap;margin-top:8px">${ANNI.map((a,i)=>`<label><input type="checkbox" value="${a}" ${i>=ANNI.length-3?'checked':''}><span>${a}</span></label>`).join('')}</div>`;
+ box.onchange=cb;
+ box.querySelectorAll('button').forEach(b=>b.onclick=()=>{box.querySelectorAll('.seg input').forEach((i,k,a)=>i.checked=b.dataset.a=='tutti'||k>=a.length-3);cb()});
+}
+const anniSel=box=>[...box.querySelectorAll('.seg input:checked')].map(i=>i.value);
+const SELA={};
+function creaAnno(inp,anni){
+ const s=document.createElement('select'),w=document.createElement('div');
+ s.setAttribute('aria-label','Anno');w.className='mp';
+ s.innerHTML=anni.map(a=>`<option>${a}</option>`).join('');
+ s.onchange=()=>{inp.value=s.value+(inp.value.slice(4)||'-01');inp.dispatchEvent(new Event('change'))};
+ inp.replaceWith(w);w.append(s,inp);SELA[inp.id]=s;
+}
+const syncAnni=()=>[mese,ma,mb].forEach(i=>{if(i.value&&SELA[i.id])SELA[i.id].value=i.value.slice(0,4)});
+
+fetch('/api/dati').then(r=>r.json()).then(d=>{
+ D=d;const ord=Object.keys(D.mesi).sort(),now=new Date().toISOString().slice(0,7);
+ const anni=[...new Set(ord.map(k=>k.slice(0,4)))];if(!anni.length)anni.push(now.slice(0,4));
+ ANNI=anni;
+ const voci={entrata:new Set(),uscita:new Set()};
+ Object.values(D.mesi).forEach(m=>['entrata','uscita'].forEach(t=>Object.keys(m[t]).forEach(c=>voci[t].add(c))));
+ vv.innerHTML='<optgroup label="Totali"><option value="entrata|*">Tutte le entrate</option><option value="uscita|*">Tutte le uscite</option></optgroup>'+[['entrata','Entrate'],['uscita','Uscite']].map(([t,l])=>`<optgroup label="${l}">${[...voci[t]].sort().map(c=>`<option value="${t}|${esc(c)}">${esc(c)}</option>`).join('')}</optgroup>`).join('');
+ vv.value='entrata|Ripetizioni';if(!vv.value)vv.selectedIndex=0;
+ const nowY=+now.slice(0,4),tuttiAnni=[...new Set([...anni,String(nowY)])].sort().reverse();
+ [mese,ma,mb].forEach(i=>creaAnno(i,tuttiAnni));
+ mese.value=D.mesi[now]?now:(ord[ord.length-1]||now);
+ mese.onchange=()=>{ma.value=mese.value;mb.value=prev(mese.value);if(!mb.value)mb.value=mese.value;render()};
+ ma.onchange=mb.onchange=confrontoMesi;met.onchange=confrontoAnni;vv.onchange=confrontoVoce;
+ anniUI(boxA,confrontoAnni);anniUI(boxV,confrontoVoce);
+ mese.onchange();
+});
+</script>{% endblock %}

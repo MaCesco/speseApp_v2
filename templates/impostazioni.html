@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block c %}
+<datalist id="cat">{% for c in USCITE + ENTRATE %}<option value="{{ c }}">{% endfor %}</datalist>
+<div class="grid">
+<div class="card"><h2>Budget mensili</h2>
+<form class="f" method="post"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="azione" value="budget">
+<select name="categoria">{% for c in USCITE %}<option>{{ c }}</option>{% endfor %}</select>
+<input name="importo" type="number" step="1" min="0" placeholder="Budget mensile in €" required>
+<button>Imposta budget</button></form>
+{% for b in budget %}<form method="post" class="row" style="margin-top:10px"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="azione" value="del_budget"><input type="hidden" name="id" value="{{ b.id }}">
+<span>{{ b.categoria }}: {{ '%.0f'|format(b.importo) }} €</span><button class="x" aria-label="Elimina">✕</button></form>{% endfor %}</div>
+
+<div class="card"><h2>Spese ricorrenti</h2>
+<form class="f" method="post"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="azione" value="ricorrente">
+<select name="tipo"><option value="uscita">Uscita</option><option value="entrata">Entrata</option></select>
+<input name="categoria" list="cat" placeholder="Categoria" required>
+<input name="descrizione" placeholder="Descrizione (es. Affitto)">
+<div class="row"><input name="importo" type="number" step="0.01" min="0" placeholder="Importo in €" required><input name="giorno" type="number" min="1" max="28" placeholder="Giorno del mese" required></div>
+<button>Aggiungi ricorrenza</button></form>
+{% for r in ric %}<form method="post" class="row" style="margin-top:10px"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="azione" value="del_ric"><input type="hidden" name="id" value="{{ r.id }}">
+<span>{{ r.descrizione or r.categoria }}: {{ '%.2f'|format(r.importo) }} € il {{ r.giorno }} di ogni mese</span><button class="x" aria-label="Elimina">✕</button></form>{% endfor %}</div>
+
+<div class="card w"><h2>Importa da Excel</h2>
+<p class="mu">Puoi selezionare più file insieme (uno per anno). Gli anni importati restano memorizzati. Caricando di nuovo un file, ad esempio Bilancio2026, viene sostituito solo quell'anno; gli altri anni e i movimenti inseriti a mano non cambiano.</p>
+<form class="f" method="post" action="/importa" enctype="multipart/form-data"><input type="hidden" name="_t" value="{{ csrf }}">
+<input type="file" name="file" accept=".xlsx" multiple required><button>Importa il file</button></form></div>
+</div>{% endblock %}
