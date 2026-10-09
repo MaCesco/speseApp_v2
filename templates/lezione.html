@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block c %}
+<form class="card f" method="post" style="margin:0 auto"><input type="hidden" name="_t" value="{{ csrf }}">
+<h1>Modifica lezione</h1>
+<p class="mu" style="margin:0">{{ l.studente.nome }}</p>
+<label class="l">Data<input name="data" type="date" value="{{ l.data.isoformat() }}" required></label>
+<div class="row"><label class="l">Ora di inizio<input name="inizio" type="time" value="{{ l.ora_inizio }}"></label><label class="l">Ora di fine<input name="fine" type="time" value="{{ l.ora_fine }}"></label></div>
+<div class="row"><label class="l">Durata (ore)<input name="ore" type="number" step="0.25" min="0.25" value="{{ l.ore }}" required></label><label class="l">Tariffa oraria (€/h)<input name="tariffa" type="number" step="0.5" min="0" value="{{ l.tariffa or l.studente.tariffa or 0 }}" required></label></div>
+<label class="l">Materia<input name="materia" value="{{ l.materia }}"></label>
+<label class="l">Modalità<select name="modalita"><option {{ 'selected' if l.modalita == 'Presenza' }}>Presenza</option><option {{ 'selected' if l.modalita == 'Online' }}>Online</option></select></label>
+<label class="l">Pagamento<select name="pagata"><option value="0" {{ 'selected' if not l.pagata }}>Da pagare</option><option value="1" {{ 'selected' if l.pagata }}>Pagata</option></select></label>
+<button>Salva</button><a href="/ripetizioni/{{ l.studente_id }}" class="mu" style="text-align:center">Annulla</a>
+</form>{% endblock %}

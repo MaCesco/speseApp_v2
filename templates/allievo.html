@@ -1,0 +1,89 @@
+{% extends "base.html" %}{% block c %}
+<style>
+main{max-width:2000px}
+.alert{display:grid;gap:2px;margin:0 0 16px;padding:14px 18px;border-radius:16px;border:1.5px solid var(--r);background:color-mix(in srgb,var(--r) 12%,var(--card));color:var(--r)}.alert b{font-size:18px}.alert span{color:var(--tx);font-size:14px}
+.pg,.lft,.rgt,.duo{display:grid;gap:16px}
+.pg>div{min-width:0}.lft,.rgt{align-content:start}
+.stats{grid-template-columns:repeat(4,1fr);margin:0}
+.duo{grid-template-columns:1fr 1fr;align-items:start}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}.duo{grid-template-columns:1fr}}
+@media(min-width:1200px){
+.pg{grid-template-columns:1.1fr 1fr;align-items:start}
+.rgt{position:sticky;top:76px}
+.lst{display:flex;flex-direction:column;max-height:calc(100vh - 100px)}
+.scr{overflow-y:auto}}
+</style>
+<a href="/ripetizioni" class="mu">← Tutti gli allievi</a>
+<h1 style="margin:8px 0 4px">{{ s.nome }}</h1>
+{% if s.note %}<p class="mu" style="margin:0 0 16px">{{ s.note }}</p>{% else %}<div style="height:12px"></div>{% endif %}
+{% if n_pre %}<div class="alert" role="alert"><b>⚠ {{ n_pre }} {{ 'lezione già pagata' if n_pre == 1 else 'lezioni già pagate' }} e ancora da svolgere</b><span>Credito versato in anticipo: {{ '%.0f'|format(credito) }} € ({{ '%.0f'|format(s.tariffa or 0) }} €/h). Le prossime lezioni che aggiungi nasceranno già pagate (verdi) e scaleranno questo numero.</span></div>
+{% elif credito > 0 %}<p class="mu" style="margin:0 0 12px">Credito residuo: <b>{{ '%.2f'|format(credito) }} €</b> (non basta per una lezione intera)</p>{% endif %}
+<div class="pg">
+<div class="lft">
+<div class="stats">
+<div class="card stat"><span class="mu">Lezioni svolte</span><b>{{ n_tot }}</b></div>
+<div class="card stat"><span class="mu">Ore di lezione</span><b>{{ ('%.2f'|format(ore_tot)).rstrip('0').rstrip('.') }}</b></div>
+<div class="card stat"><span class="mu">Incassato finora</span><b class="g">{{ '%.0f'|format(incassato) }} €</b></div>
+<div class="card stat"><span class="mu">Da incassare</span><b class="{{ 'r' if n else 'g' }}">{{ '%.0f'|format(dovuto) }} €</b></div>
+</div>
+<div class="card"><div class="row"><h2 style="margin:0">Andamento delle lezioni</h2><select id="anno" aria-label="Anno" style="max-width:140px"></select></div>
+<p class="mu" id="riep" style="margin:8px 0 0"></p><div class="ch" style="margin-top:8px"><canvas id="cg"></canvas></div>
+<p class="mu" style="font-size:14px;margin:8px 0 0">La media a settimana divide le lezioni di un mese per le sue settimane (il mese in corso conta solo i giorni trascorsi).</p></div>
+<div class="duo">
+<div class="card"><h2>Registra un pagamento</h2>
+<form class="f" method="post" action="/ripetizioni/{{ s.id }}/incassa"><input type="hidden" name="_t" value="{{ csrf }}">
+<input name="importo" type="number" step="0.01" min="0" placeholder="Importo ricevuto in €">
+<button>Segna pagate le lezioni più vecchie</button>
+<button name="tutte" value="1" style="background:var(--g)">Segna tutte come pagate</button></form>
+<p class="mu" style="font-size:14px">Con l'importo, vengono pagate in ordine dalla più vecchia finché il denaro basta.</p></div>
+<div class="card"><h2>Dati allievo</h2>
+<form class="f" method="post" action="/ripetizioni/{{ s.id }}/dati"><input type="hidden" name="_t" value="{{ csrf }}">
+<label class="l">Nome<input name="nome" value="{{ s.nome }}" required></label>
+<label class="l">Tariffa oraria (€/h)<input name="tariffa" type="number" step="0.5" min="0" value="{{ s.tariffa }}"></label>
+<label class="l">Credito prepagato (€)<input name="credito" type="number" step="0.01" min="0" value="{{ '%.2f'|format(credito) }}"></label>
+<label class="l">Note<textarea name="note" rows="2" placeholder="Come l'hai conosciuto, contatti, appunti...">{{ s.note or '' }}</textarea></label>
+<label class="mu" style="font-size:14px"><input type="checkbox" name="applica" value="1" style="width:auto"> Applica la tariffa anche alle lezioni non pagate</label>
+<button>Salva</button></form>
+<form method="post" action="/ripetizioni/{{ s.id }}/elimina" onsubmit="return confirm('Eliminare l\'allievo e tutte le sue lezioni?')" style="margin-top:10px"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Elimina allievo</button></form></div>
+</div>
+</div>
+<div class="rgt"><div class="card lst"><h2>Lezioni <span class="mu" style="font-size:14px;font-weight:400">({{ n_tot }})</span></h2>
+<div class="scr"><table class="lez">
+{% for l in lez %}<tr class="{{ 'ok' if l.pagata else 'no' }}">
+<td>{{ l.data.strftime('%d/%m/%Y') }}<div>{% if l.pagata %}<span class="pill g">Pagata</span>{% else %}<span class="pill r">Da pagare</span>{% endif %}</div></td>
+<td class="mu">{{ l.ora_inizio }}{% if l.ora_fine %}–{{ l.ora_fine }}{% endif %}<br>{{ l.ore|round(2) }} h</td>
+<td>{{ l.materia }}<div class="mu">{{ l.modalita }}</div></td>
+<td>{{ '%.2f'|format(l.ore * (l.tariffa or s.tariffa or 0)) }} €</td>
+<td><form method="post" action="/lezione/{{ l.id }}/paga"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">{{ 'Segna da pagare' if l.pagata else 'Segna pagata' }}</button></form>
+<a class="x" href="/modifica-lezione/{{ l.id }}" style="display:inline-block;border-radius:12px;text-decoration:none;padding:5px 12px;margin-left:4px">Modifica</a>
+<form method="post" action="/lezione/{{ l.id }}/elimina" onsubmit="return confirm('Eliminare questa lezione?')"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x" aria-label="Elimina">✕</button></form></td>
+</tr>{% else %}<tr><td class="mu">Nessuna lezione.</td></tr>{% endfor %}
+</table></div></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+const S={{ serie|tojson }},MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const anni=[...new Set(S.map(x=>x[0].slice(0,4)))].sort().reverse();
+anno.innerHTML=anni.map(a=>`<option>${a}</option>`).join('');
+let g;
+function disegna(){
+ Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
+ if(g)g.destroy();
+ if(!anni.length){riep.textContent='Ancora nessuna lezione.';anno.style.display='none';return}
+ const y=+anno.value,oggi=new Date(),corrente=y==oggi.getFullYear();
+ const n=Array(12).fill(0);S.forEach(([d])=>{if(+d.slice(0,4)==y)n[+d.slice(5,7)-1]++});
+ const giorni=m=>corrente&&m==oggi.getMonth()?oggi.getDate():new Date(y,m+1,0).getDate();
+ const sett=n.map((v,m)=>corrente&&m>oggi.getMonth()?null:+(v/(giorni(m)/7)).toFixed(2));
+ const tot=n.reduce((a,b)=>a+b,0),gg=n.reduce((a,v,m)=>a+(v?giorni(m):0),0);
+ riep.textContent=tot?`${tot} lezioni nel ${y}, in media ${(tot/(gg/7)).toFixed(1)} a settimana (nei mesi con lezioni)`:`Nessuna lezione nel ${y}`;
+ g=new Chart(cg,{type:'bar',data:{labels:MESI,datasets:[
+  {type:'bar',label:'Lezioni al mese',data:n,backgroundColor:css('--in')+'cc',borderRadius:5,maxBarThickness:26,barPercentage:.6,categoryPercentage:.8,order:1,yAxisID:'y'},
+  {type:'line',label:'Media a settimana',data:sett,borderColor:'#f5a524',backgroundColor:'#f5a524',borderWidth:3,tension:.3,pointRadius:4,order:0,yAxisID:'y2'}]},
+  options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{
+   y:{beginAtZero:true,ticks:{precision:0},title:{display:true,text:'Lezioni al mese'}},
+   y2:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:'Lezioni a settimana'}}}}});
+}
+function aggiornaGrafici(){disegna()}
+anno.onchange=disegna;disegna();
+</script>{% endblock %}

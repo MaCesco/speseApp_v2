@@ -34,8 +34,12 @@
 <script>
 const MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const P=['#4f46e5','#0f9d8a','#e0457b','#f5a524','#0ea5e9','#8b5cf6','#84cc16','#f97316','#14b8a6','#ec4899','#64748b','#eab308'];
-Chart.defaults.color='#68728a';Chart.defaults.borderColor='#14213d12';Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.font.family="'DM Sans',sans-serif";
 let D,ch={},ANNI=[];
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function temaGrafici(){Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line')}
+function aggiornaGrafici(){temaGrafici();if(D)render()}
+temaGrafici();
 const pad=n=>String(n).padStart(2,'0');
 const eur=v=>v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -53,7 +57,7 @@ function render(){
  draw('c1',{type:'bar',data:{labels:MESI,datasets:[{label:'Entrate',data:serie('entrata'),backgroundColor:'#0f9d8a',borderRadius:6},{label:'Uscite',data:serie('uscita'),backgroundColor:'#e0457b',borderRadius:6}]},
   options:{onClick:(ev,els)=>{if(els.length){mese.value=`${y}-${pad(els[0].index+1)}`;mese.onchange()}},onHover:(ev,els)=>{ev.native.target.style.cursor=els.length?'pointer':'default'}}});
  const cc=Object.entries(cats(k,'uscita')).sort((a,b)=>b[1]-a[1]);
- draw('c2',{type:'doughnut',data:{labels:cc.map(x=>x[0]),datasets:[{data:cc.map(x=>x[1]),backgroundColor:P,borderWidth:2,borderColor:'#fff'}]},options:{cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
+ draw('c2',{type:'doughnut',data:{labels:cc.map(x=>x[0]),datasets:[{data:cc.map(x=>x[1]),backgroundColor:P,borderWidth:2,borderColor:css('--card')}]},options:{cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
  const sp=cats(k,'uscita');
  bud.innerHTML=Object.entries(D.budget).map(([c,b])=>{const s=sp[c]||0,p=s/b*100;
   return `<div class="bl"><span>${esc(c)}</span><span class="${p>100?'r':'mu'}">${eur(s)} su ${eur(b)}</span></div><div class="bar"><i style="width:${Math.min(p,100)}%;${p>100?'background:var(--r)':''}"></i></div>`}).join('')||'<p class="mu">Nessun budget impostato. Aggiungilo da Impostazioni.</p>';

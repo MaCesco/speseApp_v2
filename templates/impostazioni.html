@@ -19,6 +19,13 @@
 {% for r in ric %}<form method="post" class="row" style="margin-top:10px"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="azione" value="del_ric"><input type="hidden" name="id" value="{{ r.id }}">
 <span>{{ r.descrizione or r.categoria }}: {{ '%.2f'|format(r.importo) }} € il {{ r.giorno }} di ogni mese</span><button class="x" aria-label="Elimina">✕</button></form>{% endfor %}</div>
 
+<div class="card"><h2>Password</h2>
+<form class="f" method="post" action="/password"><input type="hidden" name="_t" value="{{ csrf }}">
+<input name="vecchia" type="password" placeholder="Password attuale" autocomplete="current-password" required>
+<input name="nuova" type="password" placeholder="Nuova password (almeno 10 caratteri)" autocomplete="new-password" minlength="10" required>
+<input name="conferma" type="password" placeholder="Ripeti la nuova password" autocomplete="new-password" required>
+<button>Cambia password</button></form></div>
+
 <div class="card w"><h2>Importa da Excel</h2>
 <p class="mu">Puoi selezionare più file insieme (uno per anno). Gli anni importati restano memorizzati. Caricando di nuovo un file, ad esempio Bilancio2026, viene sostituito solo quell'anno; gli altri anni e i movimenti inseriti a mano non cambiano.</p>
 <form class="f" method="post" action="/importa" enctype="multipart/form-data"><input type="hidden" name="_t" value="{{ csrf }}">

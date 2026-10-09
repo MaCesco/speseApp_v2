@@ -1,0 +1,117 @@
+{% extends "base.html" %}{% block c %}
+<style>
+main{max-width:2000px}
+.pg,.lft,.rgt,.duo{display:grid;gap:16px}
+.pg>div{min-width:0}.lft,.rgt{align-content:start}
+.stats{grid-template-columns:repeat(4,1fr);margin:0}
+.duo{grid-template-columns:1fr 1fr;align-items:start}
+.s2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.fr{border:1.5px solid color-mix(in srgb,var(--in) 45%,var(--line));border-radius:22px;padding:10px 12px 12px;background:color-mix(in srgb,var(--in) 4%,transparent)}
+.fr h3{margin:0 0 8px 4px;font:700 13px 'DM Sans',sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--in)}
+.fr h3 small{text-transform:none;letter-spacing:0;font-weight:400;color:var(--mu);margin-left:6px}
+.in2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+:root{--am:#b45309}[data-theme=dark]{--am:#f5a524}
+.fr.eu{border-color:color-mix(in srgb,var(--am) 55%,var(--line));background:color-mix(in srgb,var(--am) 5%,transparent)}
+.fr.eu h3{color:var(--am)}
+.sb{display:block;font-size:13px;color:var(--mu);margin-top:2px}
+@media(max-width:760px){.s2{grid-template-columns:1fr}}
+.stud th{padding:8px 6px;text-align:left;color:var(--mu);font-size:13px;font-weight:700;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:1}
+.stud th:nth-child(n+4),.stud td:nth-child(5){text-align:right}
+.stud td:nth-child(5){font-weight:700;white-space:nowrap}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}.duo{grid-template-columns:1fr}}
+@media(min-width:1200px){
+.pg{grid-template-columns:1.05fr 1fr;align-items:start}
+.rgt{position:sticky;top:76px}
+.lst{display:flex;flex-direction:column;max-height:calc(100vh - 100px)}
+.scr{overflow-y:auto}}
+</style>
+<datalist id="al">{% for a in elenco %}<option value="{{ a.s.nome }}">{% endfor %}</datalist>
+<div class="row" style="margin-bottom:16px"><h1>Ripetizioni</h1><a href="/ripetizioni/calendario" style="flex:0 0 auto;min-width:0;background:var(--in);color:#fff;text-decoration:none;border-radius:12px;padding:10px 18px;font-weight:700">Calendario settimanale</a><a href="/ripetizioni/confronti" style="flex:0 0 auto;min-width:0;background:var(--in);color:#fff;text-decoration:none;border-radius:12px;padding:10px 18px;font-weight:700">Confronti tra anni e mesi →</a></div>
+<div class="pg">
+<div class="lft">
+<div class="s2">
+<div class="fr"><h3>Mese <small>ore di lezione</small></h3><div class="in2">
+<div class="card stat"><span class="mu">Attuale</span><b class="{{ 'g' if p.mese >= p.mese_prec_pari else 'r' }}">{{ p.mese|ore }} h</b><span class="sb">Mese scorso, stessi giorni: {{ p.mese_prec_pari|ore }} h</span>{% if p.mese_prog %}<span class="sb">+ {{ p.mese_prog|ore }} h in programma</span>{% endif %}</div>
+<div class="card stat"><span class="mu">Scorso</span><b>{{ p.mese_prec|ore }} h</b><span class="sb">{{ p.nome_mese_prec }}</span></div>
+</div></div>
+<div class="fr"><h3>Settimana <small>ore di lezione</small></h3><div class="in2">
+<div class="card stat"><span class="mu">Attuale</span><b class="{{ 'g' if p.sett >= p.sett_prec_pari else 'r' }}">{{ p.sett|ore }} h</b><span class="sb">Settimana scorsa, stessi giorni: {{ p.sett_prec_pari|ore }} h</span>{% if p.sett_prog %}<span class="sb">+ {{ p.sett_prog|ore }} h in programma</span>{% endif %}</div>
+<div class="card stat"><span class="mu">Scorsa</span><b>{{ p.sett_prec|ore }} h</b><span class="sb">{{ p.periodo_sett_prec }}</span></div>
+</div></div>
+<div class="fr eu"><h3>Incassi <small>in euro</small></h3><div class="in2">
+<div class="card stat"><span class="mu">Da incassare</span><b class="{{ 'r' if tot else 'g' }}">{{ '%.0f'|format(tot) }} €</b><span class="sb">{{ tot_n }} lezioni · {{ n_deb }} allievi</span></div>
+<div class="card stat"><span class="mu">Incassato nel <span id="ky"></span></span><b class="g" id="kinc">–</b></div>
+</div></div>
+<div class="fr"><h3>Media totale <small>incasso, <span id="ky2"></span></small></h3><div class="in2">
+<div class="card stat"><span class="mu">Mensile</span><b id="kmm">–</b></div>
+<div class="card stat"><span class="mu">Settimanale</span><b id="kms">–</b></div>
+</div></div>
+</div>
+<p class="mu" style="font-size:13px;margin:0">Il numero «Attuale» è verde se sei pari o sopra al periodo precedente negli stessi giorni, rosso se sei sotto.</p>
+<div class="card"><div class="row"><h2 style="margin:0">Incassi mese per mese</h2><select id="anno" aria-label="Anno" style="max-width:140px"></select></div>
+<div class="ch" style="margin-top:12px"><canvas id="cg"></canvas></div>
+<p class="mu" style="font-size:14px;margin:8px 0 0">Conta le lezioni pagate nel mese in cui sono state svolte. Le medie considerano i mesi con incassi; il mese in corso è escluso.</p></div>
+<div class="duo">
+<div class="card"><h2>Nuova lezione</h2>
+<form class="f" method="post" action="/ripetizioni/nuova"><input type="hidden" name="_t" value="{{ csrf }}">
+<input name="studente" list="al" placeholder="Allievo (scegli o scrivi un nome nuovo)" required>
+<input name="data" type="date" value="{{ oggi }}" required>
+<div class="row"><input name="inizio" type="time" required aria-label="Inizio"><input name="fine" type="time" required aria-label="Fine"></div>
+<input name="materia" placeholder="Materia">
+<select name="modalita"><option>Presenza</option><option>Online</option></select>
+<input name="tariffa" type="number" step="0.5" min="0" placeholder="Tariffa €/h (solo per un nuovo allievo)">
+<button>Aggiungi lezione</button></form></div>
+<div class="card"><h2>Importa ed esporta</h2>
+<p style="margin:0 0 6px"><a href="/ripetizioni/esporta-fogli" style="font-weight:700;color:var(--in)">Scarica Excel aggiornato</a> <span class="mu">(un foglio per allievo, come il tuo file: si può ricaricare qui)</span></p>
+{% if ultimo_file %}<p style="margin:0 0 6px">Ultimo file caricato: <b>{{ ultimo_file.nome }}</b><br><span class="mu" data-utc="{{ ultimo_file.iso }}"></span> · <a href="/ripetizioni/file" style="font-weight:700;color:var(--in)">Scarica</a></p>{% else %}<p class="mu" style="margin:0 0 6px">Nessun file caricato finora.</p>{% endif %}
+<p class="mu">Il nuovo file sostituisce il precedente: lezioni e pagamenti vengono aggiornati con quello che c'è nel file (rosso = da pagare, verde = pagata). Il file resta salvato sul server, così gli stessi dati si vedono da ogni dispositivo. Le lezioni aggiunte a mano dal sito non vengono toccate.</p>
+<form class="f" method="post" action="/ripetizioni/importa" enctype="multipart/form-data" onsubmit="return confirm('Il nuovo file sostituirà i dati importati dal file precedente. Continuare?')"><input type="hidden" name="_t" value="{{ csrf }}">
+<input type="file" name="file" accept=".xlsx" required><button>Carica e sostituisci</button></form></div>
+</div>
+</div>
+<div class="rgt"><div class="card lst">
+<h2>Allievi {% if tutti %}<a class="mu" style="font-size:14px;font-weight:400" href="/ripetizioni">(solo attivi)</a>{% else %}<a class="mu" style="font-size:14px;font-weight:400" href="/ripetizioni?tutti=1">(mostra anche i vecchi)</a>{% endif %}</h2>
+<div class="scr"><table class="stud">
+<thead><tr><th>Allievo</th><th>Ultima lezione</th><th>Stato</th><th>Incassato</th><th>Da incassare</th></tr></thead>
+{% for a in visibili %}<tr>
+<td><a href="/ripetizioni/{{ a.s.id }}" style="color:inherit;font-weight:700">{{ a.s.nome }}</a></td>
+<td class="mu">{{ a.ultima.strftime('%d/%m/%Y') if a.ultima else '–' }}</td>
+<td>{% if a.n %}<span class="pill r">{{ a.n }} da pagare</span>{% else %}<span class="pill g">In regola</span>{% endif %}{% if a.pre %}<div class="mu" style="font-size:13px;margin-top:2px">{{ a.pre }} già pagate da svolgere</div>{% endif %}</td>
+<td class="g">{{ '%.0f'|format(a.incassato) }} €</td>
+<td class="{{ 'r' if a.dovuto else 'mu' }}">{{ '%.0f'|format(a.dovuto) }} €</td></tr>
+{% else %}<tr><td class="mu">Nessun allievo: aggiungi una lezione o importa il file Excel.</td></tr>{% endfor %}
+</table></div></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+const INC={{ inc_mesi|tojson }},MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const eur=v=>v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const anni=[...new Set(Object.keys(INC).map(k=>k.slice(0,4)))].sort().reverse();
+anno.innerHTML=anni.map(a=>`<option>${a}</option>`).join('');
+let g;
+function disegna(){
+ Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
+ if(g)g.destroy();
+ if(!anni.length){anno.style.display='none';return}
+ const y=+anno.value,oggi=new Date(),corr=y==oggi.getFullYear();
+ const inc=MESI.map((_,m)=>INC[`${y}-${String(m+1).padStart(2,'0')}`]||0);
+ const giorni=m=>corr&&m==oggi.getMonth()?oggi.getDate():new Date(y,m+1,0).getDate();
+ const sett=inc.map((v,m)=>corr&&m>oggi.getMonth()?null:+(v/(giorni(m)/7)).toFixed(2));
+ let ms=inc.map((v,m)=>v>0?m:-1).filter(m=>m>=0);
+ if(corr&&ms.length>1)ms=ms.filter(m=>m!=oggi.getMonth());
+ const somma=ms.reduce((a,m)=>a+inc[m],0),mediaM=ms.length?somma/ms.length:0,mediaS=ms.length?somma/(ms.reduce((a,m)=>a+giorni(m),0)/7):0;
+ ky.textContent=ky2.textContent=y;kinc.textContent=eur(inc.reduce((a,b)=>a+b,0));kmm.textContent=eur(mediaM);kms.textContent=eur(mediaS);
+ g=new Chart(cg,{type:'bar',data:{labels:MESI,datasets:[
+  {type:'bar',label:'Incassato nel mese',data:inc,backgroundColor:css('--g')+'cc',borderRadius:5,maxBarThickness:30,barPercentage:.7,categoryPercentage:.8,order:2,yAxisID:'y'},
+  {type:'line',label:'Media mensile',data:Array(12).fill(+mediaM.toFixed(2)),borderColor:css('--mu'),borderDash:[6,6],borderWidth:2,pointRadius:0,order:1,yAxisID:'y'},
+  {type:'line',label:'Media a settimana (del mese)',data:sett,borderColor:'#f5a524',backgroundColor:'#f5a524',borderWidth:3,tension:.3,pointRadius:4,order:0,yAxisID:'y2'}]},
+  options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+   plugins:{tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${eur(c.parsed.y)}`}}},
+   scales:{y:{beginAtZero:true,ticks:{callback:v=>eur(v)},title:{display:true,text:'Euro al mese'}},
+    y2:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},ticks:{callback:v=>eur(v)},title:{display:true,text:'Euro a settimana'}}}}});
+}
+function aggiornaGrafici(){disegna()}
+anno.onchange=disegna;disegna();
+document.querySelectorAll('[data-utc]').forEach(e=>e.textContent=new Date(e.dataset.utc).toLocaleString('it-IT',{dateStyle:'medium',timeStyle:'short'}));
+</script>{% endblock %}

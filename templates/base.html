@@ -2,15 +2,25 @@
 <html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Le mie spese</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('tema')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light')}catch(e){}</script>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head><body>
 {% if session.uid %}<nav>
 <span class="logo">Le mie spese</span>
-<a href="/">Dashboard</a><a href="/movimenti">Movimenti</a><a href="/impostazioni">Impostazioni</a><a href="/logout">Esci</a>
+<a href="/">Dashboard</a><a href="/movimenti">Movimenti</a><a href="/ripetizioni">Ripetizioni</a><a href="/impostazioni">Impostazioni</a><a href="/logout">Esci</a>
+<button type="button" class="x" id="tema"></button>
 <a class="fab" href="/nuovo">+ Aggiungi</a>
 </nav>{% endif %}
 <main>
 {% for m in get_flashed_messages() %}<div class="flash">{{ m }}</div>{% endfor %}
 {% block c %}{% endblock %}
-</main></body></html>
+</main>
+<script>(function(){
+const T=document.documentElement,b=document.getElementById('tema');
+if(!b)return;
+const mostra=()=>b.textContent=T.dataset.theme=='dark'?'☀️ Chiaro':'🌙 Scuro';
+b.onclick=()=>{T.dataset.theme=T.dataset.theme=='dark'?'light':'dark';try{localStorage.setItem('tema',T.dataset.theme)}catch(e){};mostra();if(window.aggiornaGrafici)aggiornaGrafici()};
+mostra();
+})()</script>
+</body></html>

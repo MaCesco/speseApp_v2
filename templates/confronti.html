@@ -1,0 +1,99 @@
+{% extends "base.html" %}{% block c %}
+<style>
+main{max-width:2000px}
+.cg{display:grid;gap:16px}.cg>*{min-width:0}
+.stats{grid-template-columns:repeat(3,1fr);margin:0 0 16px}
+.lb{display:grid;gap:4px;font-size:14px;font-weight:700;color:var(--mu)}
+.lb select{font-weight:400;color:var(--tx)}
+.anni label{flex:1 1 72px}.anni span{padding:8px 0}
+.cmp{width:100%;border-collapse:collapse}
+.cmp th{padding:8px 6px;font-size:13px;color:var(--mu);border-bottom:1px solid var(--line)}
+.cmp td{font-weight:400;white-space:nowrap}
+.cmp th,.cmp td{text-align:right}.cmp th:first-child,.cmp td:first-child{text-align:left}
+@media(min-width:1100px){.cg{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.stats{grid-template-columns:1fr}}
+</style>
+<a href="/ripetizioni" class="mu">← Ripetizioni</a>
+<h1 style="margin:8px 0 16px">Confronti</h1>
+<div class="card" style="margin-bottom:16px">
+<div class="row" style="justify-content:flex-start;align-items:end;gap:16px"><label class="lb" style="max-width:260px">Cosa confrontare<select id="met"><option value="o">Ore svolte</option><option value="e">Incassato</option></select></label>
+<label class="lb" style="max-width:440px">Periodo del grafico «Totale per anno»<select id="per"><option value="12">Anno intero</option><option value="p"></option></select></label></div>
+<p class="mu" style="margin:14px 0 0;font-weight:700;font-size:14px">Anni da confrontare nei primi due grafici</p>
+<div id="boxA" class="anni"></div>
+</div>
+<div class="stats">
+<div class="card stat"><span class="mu" id="l1"></span><b id="k1">–</b></div>
+<div class="card stat"><span class="mu" id="l2"></span><b id="k2">–</b></div>
+<div class="card stat"><span class="mu" id="l3">Variazione</span><b id="k3">–</b></div>
+</div>
+<div class="cg">
+<div class="card"><h2 id="t1">Totale per anno</h2><p class="mu" id="s1" style="font-size:14px;margin:0 0 8px"></p><div class="ch"><canvas id="c1"></canvas></div></div>
+<div class="card"><h2 id="t2">Mese per mese, anno su anno</h2><div class="ch"><canvas id="c2"></canvas></div></div>
+<div class="card"><h2>Confronto tra due mesi: ore svolte e incasso</h2>
+<div class="row" style="align-items:end;margin-bottom:12px">
+<label class="lb">Primo mese<div class="row" style="flex-wrap:nowrap"><select id="am"></select><select id="ay"></select></div></label>
+<label class="lb">Secondo mese<div class="row" style="flex-wrap:nowrap"><select id="bm"></select><select id="by"></select></div></label></div>
+<table class="cmp" id="cmpT"></table></div>
+<div class="card"><div class="row"><h2 id="t3" style="margin:0">Stesso mese, negli anni</h2><select id="tm" aria-label="Mese" style="max-width:180px"></select></div>
+<div class="ch" style="margin-top:12px"><canvas id="c3"></canvas></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+const D={{ dati|tojson }};
+const ML=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'],MS=ML.map(m=>m.slice(0,3));
+const P=['#4f46e5','#0f9d8a','#e0457b','#f5a524','#0ea5e9','#8b5cf6','#84cc16','#f97316','#14b8a6','#ec4899','#64748b','#eab308'];
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const eur=v=>v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const M={o:{l:'Ore svolte',L:'Ore svolte',u:' ore',i:1,f:v=>(+v.toFixed(1))+''},e:{l:'Incassato',L:'Incassato',u:'',i:2,f:eur}};
+const pad=n=>String(n).padStart(2,'0'),oggi=new Date(),cy=oggi.getFullYear(),UP=oggi.getMonth()||1;
+const anni=[...new Set(Object.keys(D).map(k=>+k.slice(0,4)))].sort((a,b)=>a-b);
+const cell=(y,m,k=met.value)=>(D[`${y}-${pad(m)}`]||[0,0,0])[M[k].i];
+const yt=(y,up=12)=>{let s=0;for(let m=1;m<=up;m++)s+=cell(y,m);return s};
+const col=y=>P[anni.indexOf(y)%P.length];
+const sel=()=>[...boxA.querySelectorAll('input:checked')].map(i=>+i.value);
+const ch={};
+function draw(id,cfg){ch[id]&&ch[id].destroy();cfg.options=Object.assign({maintainAspectRatio:false},cfg.options);ch[id]=new Chart(document.getElementById(id),cfg)}
+function barre(id,ys,fn,inCorso=true){
+ const m=M[met.value],vals=ys.map(fn);
+ draw(id,{type:'bar',data:{labels:ys.map(y=>y==cy&&inCorso?y+' (in corso)':''+y),datasets:[
+  {type:'bar',label:m.l,data:vals,backgroundColor:ys.map(y=>y==cy&&inCorso?css('--in')+'66':css('--in')+'cc'),borderRadius:5,maxBarThickness:46,order:1},
+  {type:'line',label:'Andamento',data:vals,borderColor:'#f5a524',backgroundColor:'#f5a524',borderWidth:3,tension:.25,pointRadius:4,order:0}]},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${m.l}: ${m.f(c.parsed.y)}`,
+   afterLabel:c=>{const p=c.dataIndex?vals[c.dataIndex-1]:0;return p?`${((c.parsed.y-p)/p*100).toFixed(0)}% rispetto al ${ys[c.dataIndex-1]}`:''}}}},
+   scales:{y:{beginAtZero:true,ticks:{callback:v=>m.f(v)}}}}});
+}
+function render(){
+ Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
+ const m=M[met.value],ys=sel(),a=yt(cy,UP),b=yt(cy-1,UP),d=a-b,corto=per.value=='p';
+ const pp=UP==1?'gennaio':'gennaio–'+ML[UP-1].toLowerCase();
+ l1.textContent=`${m.L}, ${pp} ${cy}`;l2.textContent=`${m.L}, ${pp} ${cy-1}`;l3.textContent=`Variazione ${cy} rispetto al ${cy-1}`;
+ k1.textContent=m.f(a)+m.u;k2.textContent=m.f(b)+m.u;k3.textContent=b?(d>0?'+':'')+(d/b*100).toFixed(0)+'%':'–';k3.className=d>=0?'g':'r';
+ t1.textContent=`${m.L}: totale di ogni anno`+(corto?` (solo ${pp})`:'');
+ s1.textContent=corto?`Ogni barra somma solo ${pp} di quell'anno, così gli anni si confrontano alla pari.`:`Ogni barra è il totale di un anno intero. Il ${cy} è in corso: la sua barra, più chiara, conta solo fino a oggi. La linea gialla unisce le barre per mostrare la tendenza.`;
+ t2.textContent=`${m.L}: mese per mese, anno su anno`;t3.textContent=`${m.L}: stesso mese, negli anni`;
+ per.options[1].textContent=`Solo ${pp} (confronto alla pari)`;
+ barre('c1',ys,y=>yt(y,corto?UP:12),!corto);
+ draw('c2',{type:'line',data:{labels:MS,datasets:ys.map(y=>({label:y,data:MS.map((_,i)=>y==cy&&i>oggi.getMonth()?null:cell(y,i+1)),borderColor:col(y),backgroundColor:col(y),borderWidth:3,tension:.3,pointRadius:3}))},
+  options:{interaction:{mode:'index',intersect:false},plugins:{tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${m.f(c.parsed.y)}`}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>m.f(v)}}}}});
+ barre('c3',anni,y=>cell(y,+tm.value));
+ confronta();
+}
+function confronta(){
+ const A=[+ay.value,+am.value],B=[+by.value,+bm.value];
+ const righe=Object.keys(M).map(k=>{const x=cell(A[0],A[1],k),z=cell(B[0],B[1],k),d=x-z,c=d>=0?'g':'r',f=M[k].f;
+  return `<tr><td>${M[k].l}</td><td>${f(x)}</td><td>${f(z)}</td><td class="${c}">${d>0?'+':''}${f(d)}</td><td class="${c}">${z?(d>0?'+':'')+(d/z*100).toFixed(0)+'%':'–'}</td></tr>`}).join('');
+ cmpT.innerHTML=`<thead><tr><th></th><th>${ML[A[1]-1]} ${A[0]}</th><th>${ML[B[1]-1]} ${B[0]}</th><th>Differenza</th><th>Variazione</th></tr></thead>${righe}`;
+}
+function aggiornaGrafici(){render()}
+if(!anni.length){document.querySelector('.cg').innerHTML='<p class="mu">Ancora nessuna lezione: importa il file Excel o aggiungi una lezione.</p>'}
+else{
+ boxA.innerHTML=`<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="x" data-a="t">Tutti gli anni</button><button type="button" class="x" data-a="u">Ultimi 3</button></div><div class="seg" style="flex-wrap:wrap;margin-top:8px">${anni.map((a,i)=>`<label><input type="checkbox" value="${a}" ${i>=anni.length-3?'checked':''}><span>${a}</span></label>`).join('')}</div>`;
+ boxA.querySelectorAll('button').forEach(b=>b.onclick=()=>{boxA.querySelectorAll('.seg input').forEach((i,k,a)=>i.checked=b.dataset.a=='t'||k>=a.length-3);render()});
+ const opzMesi=ML.map((n,i)=>`<option value="${i+1}">${n}</option>`).join(''),opzAnni=[...anni].reverse().map(a=>`<option>${a}</option>`).join('');
+ am.innerHTML=bm.innerHTML=tm.innerHTML=opzMesi;ay.innerHTML=by.innerHTML=opzAnni;
+ const mp=oggi.getMonth()||12,ap=oggi.getMonth()?cy:cy-1;
+ am.value=bm.value=tm.value=mp;ay.value=ap;by.value=ap-1;if(!by.value)by.value=ap;
+ met.onchange=per.onchange=boxA.onchange=tm.onchange=render;am.onchange=ay.onchange=bm.onchange=by.onchange=confronta;
+ render();
+}
+</script>{% endblock %}
