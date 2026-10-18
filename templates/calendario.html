@@ -1,33 +1,39 @@
 {% extends "base.html" %}{% block c %}
 <style>
-main{max-width:2000px}
-a.x{display:inline-block;border-radius:12px;text-decoration:none;padding:8px 16px;font-weight:700}
-.cal{display:grid;grid-template-columns:52px repeat(7,minmax(0,1fr));gap:0 6px}
-.hrs{position:relative;margin-top:58px;font-size:12px;color:var(--mu)}
+main{max-width:none}
+:root{--hh:60px;--fs:12.5px;--dh:52px}
+@media(min-width:1900px){:root{--hh:66px;--fs:13.5px;--dh:54px}}
+@media(min-width:2600px){:root{--hh:76px;--fs:15.5px;--dh:60px}}
+a.x{display:inline-block;border-radius:12px;text-decoration:none;padding:.6em 1.2em;font-size:calc(var(--fs)*1.2);font-weight:700}
+.back{font-size:calc(var(--fs)*1.2)}.sum{font-size:calc(var(--fs)*1.1)}
+.cal{display:grid;grid-template-columns:calc(var(--fs)*4.2) repeat(7,minmax(0,1fr));gap:0 6px}
+.hrs{position:relative;margin-top:calc(var(--dh) + 6px);font-size:calc(var(--fs)*.96);color:var(--mu)}
 .hrs span{position:absolute;right:6px;transform:translateY(-50%)}
 .dayc{min-width:0}
-.dh{height:52px;margin-bottom:6px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--line);font-weight:700;line-height:1.25}
-.dh small{font-weight:400;color:var(--mu)}
+.dh{height:var(--dh);font-size:calc(var(--fs)*1.2);margin-bottom:6px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--line);font-weight:700;line-height:1.25}
+.dh small{font-weight:400;color:var(--mu);font-size:.85em}
 .dh.oggi{background:var(--in);color:#fff;border-color:var(--in)}.dh.oggi small{color:#fff}
-.cb{position:relative;border-radius:12px;background-color:var(--card);border:1px solid var(--line);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 59px,var(--line) 59px,var(--line) 60px)}
-.ev{position:absolute;left:3px;right:3px;border-radius:9px;padding:3px 7px;font-size:12.5px;line-height:1.25;overflow:hidden;color:var(--tx);text-decoration:none;box-shadow:inset 4px 0 var(--c)}
+.cb{position:relative;border-radius:12px;background-color:var(--card);border:1px solid var(--line);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--hh) - 1px),var(--line) calc(var(--hh) - 1px),var(--line) var(--hh))}
+.ev{position:absolute;left:3px;right:3px;border-radius:9px;padding:3px 7px;font-size:var(--fs);line-height:1.25;overflow:hidden;color:var(--tx);text-decoration:none;box-shadow:inset 4px 0 var(--c)}
 .ev.ok{--c:var(--g);background:color-mix(in srgb,var(--g) 20%,var(--card))}
 .ev.no{--c:var(--r);background:color-mix(in srgb,var(--r) 20%,var(--card))}
 .ev b{display:block}.ev span{color:var(--mu)}
 .sen .ev{position:static;display:block;margin-top:4px}
-@media(max-width:900px){.cal{display:block}.hrs{display:none}.dayc{margin-bottom:14px}.cb{height:auto!important;background-image:none;padding:4px;min-height:34px}.cb .ev{position:static!important;height:auto!important;margin:4px}}
+.ev.n2{font-size:calc(var(--fs)*.92);padding:3px 5px}.ev.n2 span,.ev.n3 span,.ev.n4 span{display:block}.ev.n3{font-size:calc(var(--fs)*.84);padding:2px 4px;line-height:1.2}.ev.n4{font-size:calc(var(--fs)*.76);padding:2px 3px;line-height:1.15}
+.ev.n3 b,.ev.n4 b{overflow-wrap:anywhere}
+@media(max-width:900px){.cb .ev{left:auto!important;width:auto!important;font-size:13px!important;padding:3px 7px!important}.cal{display:block}.hrs{display:none}.dayc{margin-bottom:14px}.cb{height:auto!important;background-image:none;padding:4px;min-height:34px}.cb .ev{position:static!important;display:block;height:auto!important;margin:4px}}
 </style>
-<a href="/ripetizioni" class="mu">← Ripetizioni</a>
+<a href="/ripetizioni" class="mu back">← Ripetizioni</a>
 <div class="row" style="margin:8px 0 6px"><h1>Calendario</h1>
 <div style="display:flex;gap:8px;flex:0 0 auto;min-width:0">
 <a class="x" href="/ripetizioni/calendario?data={{ prec }}">← Prima</a><a class="x" href="/ripetizioni/calendario">Oggi</a><a class="x" href="/ripetizioni/calendario?data={{ succ }}">Dopo →</a></div></div>
-<p class="mu" style="margin:0 0 16px"><b style="color:var(--tx)">{{ titolo }}</b> · {{ n }} lezioni · {{ ore|ore }} ore · <span class="g">verde</span> pagata, <span class="r">rosso</span> da pagare</p>
+<p class="mu sum" style="margin:0 0 16px"><b style="color:var(--tx)">{{ titolo }}</b> · {{ n }} lezioni · {{ ore|ore }} ore · <span class="g">verde</span> pagata, <span class="r">rosso</span> da pagare</p>
 <div class="cal">
-<div class="hrs" style="height:{{ (h1 - h0) * 60 }}px">{% for h in range(h0, h1 + 1) %}<span style="top:{{ (h - h0) * 60 }}px">{{ '%02d'|format(h) }}:00</span>{% endfor %}</div>
+<div class="hrs" style="height:calc(var(--hh) * {{ h1 - h0 }})">{% for h in range(h0, h1 + 1) %}<span style="top:calc(var(--hh) * {{ h - h0 }})">{{ '%02d'|format(h) }}:00</span>{% endfor %}</div>
 {% for g in giorni %}<div class="dayc">
 <div class="dh {{ 'oggi' if g.d == oggi }}">{{ nomi[loop.index0] }}<small>{{ g.d.day }} {{ mesi_brevi[g.d.month - 1] }}</small></div>
-<div class="cb" style="height:{{ (h1 - h0) * 60 }}px">
-{% for e in g.ev %}<a class="ev {{ 'ok' if e.pagata else 'no' }}" href="/ripetizioni/{{ e.sid }}" title="{{ e.nome }} {{ e.ini }}–{{ e.fine }} {{ e.materia }} {{ e.mod }}" style="top:{{ e.start - h0 * 60 }}px;height:{{ [e.end - e.start, 30]|max }}px"><b>{{ e.nome }}</b><span>{{ e.ini }}{% if e.fine %}–{{ e.fine }}{% endif %} {{ e.materia }}{% if e.mod %} · {{ e.mod }}{% endif %}</span></a>{% endfor %}
+<div class="cb" style="height:calc(var(--hh) * {{ h1 - h0 }})">
+{% for e in g.ev %}<a class="ev {{ 'ok' if e.pagata else 'no' }}{% if e.ncols > 1 %} n{{ [e.ncols, 4]|min }}{% endif %}" href="/ripetizioni/{{ e.sid }}" title="{{ e.nome }} {{ e.ini }}–{{ e.fine }} {{ e.materia }} {{ e.mod }}" style="top:calc(var(--hh) * {{ e.start - h0 * 60 }} / 60);height:calc(var(--hh) * {{ [e.end - e.start, 30]|max }} / 60){% if e.ncols > 1 %};left:calc(3px + (100% - 6px) * {{ e.col }} / {{ e.ncols }});width:calc((100% - 6px) / {{ e.ncols }} - 2px);right:auto{% endif %}"><b>{{ e.nome }}</b><span>{{ e.ini }}{% if e.fine %}–{{ e.fine }}{% endif %}{% if e.ncols < 3 %} {{ e.materia }}{% endif %}{% if e.mod and e.ncols == 1 %} · {{ e.mod }}{% endif %}</span></a>{% endfor %}
 </div>
 {% if g.senza %}<div class="sen">{% for e in g.senza %}<a class="ev {{ 'ok' if e.pagata else 'no' }}" href="/ripetizioni/{{ e.sid }}"><b>{{ e.nome }}</b><span>orario non indicato · {{ e.ore|ore }} h</span></a>{% endfor %}</div>{% endif %}
 </div>{% endfor %}

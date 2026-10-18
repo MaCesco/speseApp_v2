@@ -1,6 +1,10 @@
 {% extends "base.html" %}{% block c %}
+<a href="/" class="back">← Dashboard</a>
 <datalist id="cat">{% for c in USCITE + ENTRATE %}<option value="{{ c }}">{% endfor %}</datalist>
 <div class="grid">
+<div class="card w solo-mob"><h2>Account</h2>
+<div class="row"><button type="button" class="x tema"></button><form method="post" action="/logout" style="margin:0"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x" style="width:100%">Esci</button></form></div></div>
+
 <div class="card"><h2>Budget mensili</h2>
 <form class="f" method="post"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="azione" value="budget">
 <select name="categoria">{% for c in USCITE %}<option>{{ c }}</option>{% endfor %}</select>
@@ -29,5 +33,26 @@
 <div class="card w"><h2>Importa da Excel</h2>
 <p class="mu">Puoi selezionare più file insieme (uno per anno). Gli anni importati restano memorizzati. Caricando di nuovo un file, ad esempio Bilancio2026, viene sostituito solo quell'anno; gli altri anni e i movimenti inseriti a mano non cambiano.</p>
 <form class="f" method="post" action="/importa" enctype="multipart/form-data"><input type="hidden" name="_t" value="{{ csrf }}">
-<input type="file" name="file" accept=".xlsx" multiple required><button>Importa il file</button></form></div>
-</div>{% endblock %}
+<input type="file" name="file" accept=".xlsx" multiple required><button>Importa file</button></form>
+
+<h3 style="margin:22px 0 4px;font-size:17px">File caricati</h3>
+{% set anni_tutti = (file_bilanci | map(attribute='anni') | sum(start=[])) + (anni_senza_file | map(attribute=0) | list) %}
+{% if anni_tutti %}<p class="mu" style="margin:0 0 8px">Anni presenti sul sito: <b style="color:var(--tx)">{{ anni_tutti | unique | sort | join(', ') }}</b></p>{% endif %}
+<style>.fl{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.fl>div{min-width:0}.fl b{display:block;overflow-wrap:anywhere}.fl form{margin:0;flex:0 0 auto}</style>
+{% for b in file_bilanci %}<div class="fl"><div><b>{{ b.f.nome }}</b>
+<span class="mu">{{ 'Anno ' if b.anni|length == 1 else 'Anni ' }}{{ b.anni | join(', ') }} · {{ b.n }} movimenti · caricato il <span data-utc="{{ b.iso }}"></span></span>
+<span class="mu" style="display:block;margin-top:4px">{% if b.originale %}<a href="/importa/scarica/{{ b.f.id }}" style="font-weight:700;color:var(--in)">Scarica originale</a>{% else %}Originale non disponibile (caricato prima di questa funzione){% endif %}</span></div>
+<form method="post" action="/importa/elimina/{{ b.f.id }}" data-msg="Eliminare «{{ b.f.nome }}» e i suoi {{ b.n }} movimenti? I movimenti inseriti a mano non vengono toccati." onsubmit="return confirm(this.dataset.msg)"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Elimina</button></form></div>
+{% endfor %}
+{% for anno, n in anni_senza_file %}<div class="fl"><div><b>Importazione precedente</b>
+<span class="mu">Anno {{ anno }} · {{ n }} movimenti · nome del file non registrato</span></div>
+<form method="post" action="/importa/elimina-anno/{{ anno }}" data-msg="Eliminare i {{ n }} movimenti importati del {{ anno }}? I movimenti inseriti a mano non vengono toccati." onsubmit="return confirm(this.dataset.msg)"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Elimina</button></form></div>
+{% endfor %}
+{% if anni_export %}<h3 style="margin:22px 0 4px;font-size:17px">Scarica Excel aggiornato</h3>
+<p class="mu" style="margin:0 0 8px">Con tutte le modifiche fatte dal sito, nello stesso formato dei tuoi file (si può ricaricare). Un file per anno.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px">{% for a in anni_export %}<a href="/esporta/{{ a }}" style="padding:10px 16px;border-radius:12px;background:var(--in);color:#fff;font-weight:700;text-decoration:none">{{ a }}</a>{% endfor %}</div>{% endif %}
+{% if not file_bilanci and not anni_senza_file %}<p class="mu" style="margin:6px 0 0">Nessun file caricato finora.</p>{% endif %}
+<p class="mu" style="font-size:14px;margin:12px 0 0">Eliminare un file toglie dal sito tutti i movimenti che arrivano da lui; poi puoi ricaricare la versione corretta.</p>
+</div>
+</div>
+<script>document.querySelectorAll('[data-utc]').forEach(e=>e.textContent=new Date(e.dataset.utc).toLocaleString('it-IT',{dateStyle:'medium',timeStyle:'short'}));</script>{% endblock %}

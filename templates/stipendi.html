@@ -1,0 +1,185 @@
+{% extends "base.html" %}{% block c %}
+<style>
+main{max-width:none}
+.cg{display:grid;gap:16px}.cg>*{min-width:0}
+.stats{grid-template-columns:repeat(4,1fr);margin:0 0 16px}
+.lb{display:grid;gap:4px;font-size:14px;font-weight:700;color:var(--mu);min-width:0}
+.lb select,.lb input{font-weight:400;color:var(--tx)}
+.anni label{flex:1 1 72px}.anni span{padding:8px 0}.tgl{margin-top:10px}.tgl label{flex:0 1 auto;min-width:110px}.tgl span{padding:8px 14px}
+.hero small.cf{opacity:1;color:rgba(255,255,255,.72);margin-top:2px}.cf i{font-style:normal;font-weight:700}.cf .b{color:#5eead4}.cf .m{color:#ff8fb1}.mp{display:flex;gap:8px;max-width:340px}.mp select{flex:0 0 100px;width:100px;min-width:0}.mp input{flex:1;min-width:0}
+.tb{width:100%;border-collapse:collapse;white-space:nowrap}
+.tb th{padding:8px 8px;font-size:13px;color:var(--mu);border-bottom:1px solid var(--line);text-align:right}
+.tb td{padding:8px;text-align:right;font-weight:400;border-bottom:1px solid var(--line)}
+.tb th:first-child,.tb td:first-child{text-align:left}
+.tb td.n{max-width:260px;overflow:hidden;text-overflow:ellipsis;text-align:left;color:var(--mu);font-size:13px}
+.tb tr.tr13 td{background:color-mix(in srgb,var(--in) 7%,transparent)}
+.sc{overflow-x:auto}
+.av{color:var(--rt);font-weight:700;cursor:help}
+.fg{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.fg h3{grid-column:1/-1;margin:10px 0 0;font-size:15px}
+.bt{background:none;border:0;color:var(--in);font-weight:700;cursor:pointer;padding:4px 6px;min-height:0}
+@media(min-width:1100px){.cg{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cg .w2{grid-column:1/-1}}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+{% if righe %}
+<div class="row"><h1>Stipendi</h1><input type="month" id="mese" aria-label="Mese"></div>
+<section class="hero">
+<div><span id="h0">Netto del mese</span><b id="k3">–</b><small class="cf" id="n_m"></small><small class="cf" id="n_a"></small><small class="cf" id="n_t"></small></div>
+<div><span>Competenze (lordo)</span><strong id="k1">–</strong><small class="cf" id="c_m"></small><small class="cf" id="c_a"></small><small class="cf" id="c_o"></small></div>
+<div><span>Trattenute</span><strong id="k2">–</strong><small class="cf" id="t_m"></small><small class="cf" id="t_a"></small></div>
+</section>
+<div class="card" style="margin-bottom:16px"><div class="row" style="justify-content:flex-start;align-items:end;gap:16px">
+<label class="lb" style="max-width:260px">Cosa confrontare<select id="met"><option value="netto">Netto</option><option value="competenze">Competenze (lordo)</option><option value="trattenute">Trattenute</option></select></label>
+<label class="lb" style="max-width:200px">Tredicesima<select id="t13"><option value="1">Mostra a parte</option><option value="0">Nascondi</option></select></label></div></div>
+<div class="cg">
+<div class="card w2"><h2>Netto, competenze e trattenute mese per mese</h2><div id="boxS" class="seg tgl" style="flex-wrap:wrap"><label><input type="checkbox" value="netto" checked><span>Netto</span></label><label><input type="checkbox" value="comp" checked><span>Lordo (competenze)</span></label><label><input type="checkbox" value="tratt" checked><span>Trattenute</span></label></div><div class="ch" data-ctl="t13,boxS" style="height:340px;margin-top:12px"><canvas id="c1"></canvas></div></div>
+<div class="card"><h2 id="t2">Anno su anno</h2><div id="boxA" class="anni"></div><div class="ch" data-ctl="met,boxA" style="margin-top:12px"><canvas id="c2"></canvas></div></div>
+<div class="card"><h2>Totale per anno</h2><p class="mu" style="font-size:14px;margin:0 0 8px">Mensilità e tredicesima comprese; l'anno in corso è parziale.</p><div id="boxB" class="anni"></div><div class="ch" data-ctl="boxB" style="margin-top:12px"><canvas id="c3"></canvas></div></div>
+<div class="card"><h2>Ferie e PAR: ore disponibili (saldo)</h2><div class="ch"><canvas id="c4"></canvas></div></div>
+<div class="card"><h2>Mensa: spesa del mese e costo per giorno</h2><div id="boxC" class="anni"></div><div class="ch" data-ctl="boxC" style="margin-top:12px"><canvas id="c5"></canvas></div></div>
+</div>
+{% endif %}
+<div class="card" style="margin-top:16px">
+<div class="row"><h2 style="margin:0">Cedolini</h2>{% if righe %}<label class="lb" style="max-width:160px"><select id="fa" aria-label="Anno"></select></label>{% endif %}</div>
+<div class="sc" style="margin-top:10px"><table class="tb" id="tab"></table></div>
+{% if not righe %}<p class="mu">Nessun cedolino: carica il file Check_stipendi.xlsx qui sotto o aggiungine uno a mano.</p>{% endif %}
+</div>
+<div class="card" style="margin-top:16px"><h2>Cedolini PDF</h2>
+<p class="mu" style="margin:0 0 10px;font-size:14px">Carica il PDF del cedolino (anche più mesi insieme): il sito lo legge, lo confronta con la riga del mese e controlla che le somme tornino. Se il mese non c'è ancora, crea la riga dal PDF.</p>
+<form class="f" method="post" action="/stipendi/pdf" enctype="multipart/form-data"><input type="hidden" name="_t" value="{{ csrf }}">
+<label class="lb">Cedolini PDF<input type="file" name="file" accept="application/pdf,.pdf" multiple required></label><button style="margin-top:10px">Carica e confronta</button></form>
+{% if pdfs %}<div class="sc" style="margin-top:14px"><table class="tb">{% for p in pdfs %}<tr><td style="text-align:left"><a href="/stipendi/pdf/{{ p.id }}" style="font-weight:700;color:var(--in)">{{ mesi[p.k.split('-')[1]|int - 1] }} {{ p.k.split('-')[0] }}{% if p.k.endswith('tredicesima') %} · 13ª{% endif %}</a><br><span class="mu" style="font-size:13px">{{ p.nome }}</span></td><td>{% if p.n is none %}<span class="mu">senza riga</span>{% elif p.n %}<span class="av">⚠ {{ p.n }}</span>{% else %}<span class="g">✓</span>{% endif %}</td><td><a href="/stipendi/pdf/{{ p.id }}/file" class="bt">Scarica</a><form method="post" action="/stipendi/pdf/{{ p.id }}/elimina" style="display:inline" onsubmit="return confirm('Eliminare questo PDF?')"><input type="hidden" name="_t" value="{{ csrf }}"><button class="bt" style="color:var(--rt)">Elimina</button></form></td></tr>{% endfor %}</table></div>
+<p class="mu" style="margin:10px 0 0;font-size:13px">Spazio occupato dai PDF: {{ '%.1f'|format(peso_pdf / 1048576) }} MB ({{ pdfs|length }} file)</p>{% endif %}</div>
+<div class="card" style="margin-top:16px"><details id="dform"><summary style="font-weight:700;cursor:pointer" id="ftit">Aggiungi o modifica un cedolino</summary>
+<form method="post" action="/stipendi/salva" style="margin-top:12px"><input type="hidden" name="_t" value="{{ csrf }}">
+<div class="fg">
+<label class="lb">Mese<select name="mese" id="f_mese">{% for m in mesi %}<option value="{{ loop.index }}">{{ m }}</option>{% endfor %}</select></label>
+<label class="lb">Anno<input name="anno" id="f_anno" type="number" min="2000" max="2100" required></label>
+<label class="lb">Tipo<select name="tipo" id="f_tipo"><option value="mensile">Mensile</option><option value="tredicesima">Tredicesima</option></select></label>
+<h3>Importi (€)</h3>
+{% for a,t in campi %}<label class="lb">{{ t }}<input name="{{ a }}" id="f_{{ a }}" inputmode="decimal" autocomplete="off"></label>{% endfor %}
+<label class="lb" style="grid-column:1/-1">Nome del PDF<input name="pdf" id="f_pdf"></label>
+<label class="lb" style="grid-column:1/-1">Note (premi, rimborsi, anomalie…)<input name="note" id="f_note" maxlength="1000"></label>
+</div>
+<p class="mu" style="font-size:13px">Netto, saldi ferie/PAR e costo mensa al giorno si calcolano da soli. Se esiste già quel mese, viene aggiornato.</p>
+<button>Salva cedolino</button></form></details></div>
+<div class="card" style="margin-top:16px"><h2>File Excel</h2>
+{% if ultimo_file %}<p style="margin:0 0 6px">Ultimo file caricato: <b>{{ ultimo_file.nome }}</b><br><span class="mu" data-utc="{{ ultimo_file.iso }}"></span> · <a href="/stipendi/file" style="font-weight:700;color:var(--in)">Scarica originale</a></p>
+<form method="post" action="/stipendi/file/elimina" style="margin:0 0 10px" data-msg="Eliminare il file «{{ ultimo_file.nome }}» e tutti i cedolini che arrivano da lui? I mesi inseriti a mano dal sito non vengono toccati." onsubmit="return confirm(this.dataset.msg)"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Elimina file caricato</button></form>{% else %}<p class="mu" style="margin:0 0 6px">Nessun file caricato finora.</p>{% endif %}
+{% if righe %}<p style="margin:0 0 10px"><a href="/stipendi/esporta" style="font-weight:700;color:var(--in)">Scarica Excel aggiornato</a> <span class="mu">(con le modifiche fatte dal sito, ricaricabile)</span></p>{% endif %}
+<form class="f" method="post" action="/stipendi/importa" enctype="multipart/form-data" onsubmit="return confirm('Tutti i cedolini attuali (anche quelli inseriti a mano) verranno SOSTITUITI con il contenuto di questo file. Continuare?')"><input type="hidden" name="_t" value="{{ csrf }}">
+<label class="lb">Carica Check_stipendi.xlsx<input type="file" name="file" accept=".xlsx" required></label><button style="margin-top:10px">Importa</button></form></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script>
+const R={{ righe|tojson }};
+const ML={{ mesi|tojson }},MS=ML.map(m=>m.slice(0,3));
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const eur=v=>v==null?'–':v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const eur2=v=>v==null?'–':v.toLocaleString('it-IT',{style:'currency',currency:'EUR'});
+const nn=(v,d=2)=>v==null?'–':(+v.toFixed(d)).toLocaleString('it-IT');
+const P=['#4f46e5','#0f9d8a','#e0457b','#f5a524','#0ea5e9','#8b5cf6','#84cc16','#f97316'];
+const mens=R.filter(r=>r.tipo=='mensile'),tre=R.filter(r=>r.tipo=='tredicesima');
+const lab=r=>MS[r.mese-1]+' '+String(r.anno).slice(2)+(r.tipo=='tredicesima'?' (13ª)':'');
+const TA=[...new Set(R.map(r=>r.anno))].sort(),colA=y=>P[TA.indexOf(y)%P.length];
+const ch={};
+function draw(id,cfg){if(!window.Chart)return;ch[id]&&ch[id].destroy();cfg.options=Object.assign({maintainAspectRatio:false,interaction:{mode:'index',intersect:false}},cfg.options);cfg.options.scales=cfg.options.scales||{};
+ for(const k in cfg.options.scales){const s=cfg.options.scales[k];s.ticks=Object.assign({color:css('--mu')},s.ticks);s.grid=Object.assign({color:css('--line')},s.grid)}
+ cfg.options.plugins=Object.assign({legend:{labels:{color:css('--tx')}}},cfg.options.plugins);ch[id]=new Chart(document.getElementById(id),cfg)}
+const yAx=f=>({y:{ticks:{callback:v=>f?f(v):v}},x:{}});
+function anniUI(box,cb){
+ box.innerHTML=`<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="x" data-a="tutti">Tutti gli anni</button><button type="button" class="x" data-a="ult">Ultimi 3</button></div><div class="seg" style="flex-wrap:wrap;margin-top:8px">${TA.map((a,i)=>`<label><input type="checkbox" value="${a}" ${i>=TA.length-3?'checked':''}><span>${a}</span></label>`).join('')}</div>`;
+ box.onchange=cb;
+ box.querySelectorAll('button').forEach(b=>b.onclick=()=>{box.querySelectorAll('.seg input').forEach((i,k,a)=>i.checked=b.dataset.a=='tutti'||k>=a.length-3);cb()});
+}
+const sel=box=>[...box.querySelectorAll('.seg input:checked')].map(i=>+i.value);
+const selA=()=>sel(boxA),selB=()=>sel(boxB),selC=()=>sel(boxC);
+function grafici(){
+ if(!R.length)return;
+ const m=met.value,sh=t13.value=='1';
+ const base=sh?R:mens;
+ const on=[...boxS.querySelectorAll('input:checked')].map(i=>i.value);
+ draw('c1',{type:'bar',data:{labels:base.map(lab),datasets:[
+  {label:'Netto',k:'netto',data:base.map(r=>r.netto),backgroundColor:'#4f46e5'},
+  {label:'Trattenute',k:'tratt',data:base.map(r=>r.trattenute),backgroundColor:'#e0457b'},
+  {type:'line',label:'Competenze (lordo)',k:'comp',data:base.map(r=>r.competenze),borderColor:'#f5a524',backgroundColor:'#f5a524',tension:.25,pointRadius:2}].filter(d=>on.includes(d.k))},
+  options:{scales:yAx(eur),plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+eur2(c.parsed.y)}}}}});
+ const anni=selA();
+ t2.textContent={netto:'Netto',competenze:'Competenze',trattenute:'Trattenute'}[m]+', anno su anno';
+ draw('c2',{type:'line',data:{labels:MS,datasets:anni.map((y,i)=>({label:''+y,borderColor:colA(y),backgroundColor:colA(y),tension:.25,spanGaps:true,pointRadius:3,
+   data:MS.map((_,k)=>{const x=mens.find(r=>r.anno==y&&r.mese==k+1);return x?x[m]:null})}))},
+  options:{scales:yAx(eur),plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+eur2(c.parsed.y)}}}}});
+ const ya=selB();
+ const tot=k=>ya.map(y=>R.filter(r=>r.anno==y).reduce((s,r)=>s+(r[k]||0),0));
+ draw('c3',{type:'bar',data:{labels:ya.map(y=>y==new Date().getFullYear()?y+' (in corso)':''+y),datasets:[
+  {label:'Netto',data:tot('netto'),backgroundColor:'#4f46e5'},{label:'Trattenute',data:tot('trattenute'),backgroundColor:'#e0457b'}]},
+  options:{scales:yAx(eur),plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+eur2(c.parsed.y)}}}}});
+ const f=mens.filter(r=>r.fe_saldo!=null||r.par_saldo!=null);
+ draw('c4',{type:'line',data:{labels:f.map(lab),datasets:[
+  {label:'Ferie (saldo)',data:f.map(r=>r.fe_saldo),borderColor:'#0f9d8a',backgroundColor:'#0f9d8a',tension:.25,pointRadius:2},
+  {label:'PAR (saldo)',data:f.map(r=>r.par_saldo),borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',tension:.25,pointRadius:2}]},
+  options:{scales:yAx(v=>v+' h'),plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+nn(c.parsed.y)+' h'}}}}});
+ const yc=selC(),me=mens.filter(r=>r.mensa_tratt!=null&&yc.includes(r.anno));
+ draw('c5',{type:'bar',data:{labels:me.map(lab),datasets:[
+  {label:'Trattenuta mensa (€)',data:me.map(r=>r.mensa_tratt),backgroundColor:'#f5a524',yAxisID:'y'},
+  {type:'line',label:'Costo per giorno (€)',data:me.map(r=>r.mensa_gg),borderColor:'#4f46e5',backgroundColor:'#4f46e5',pointRadius:2,yAxisID:'y1'}]},
+  options:{scales:{y:{ticks:{callback:v=>v+' €'}},y1:{position:'right',grid:{drawOnChartArea:false},min:0,ticks:{callback:v=>v+' €'}},x:{}},
+  plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+nn(c.parsed.y)}}}}});
+}
+function tabella(){
+ const a=+fa.value;
+ const rr=R.filter(r=>r.anno==a).sort((x,y)=>x.mese-y.mese||(x.tipo=='tredicesima')-(y.tipo=='tredicesima'));
+ const cell=(v,f=eur2)=>`<td>${v==null?'–':f(v)}</td>`;
+ tab.innerHTML=`<tr><th>Mese</th><th>Giorni</th><th>Competenze</th><th>Trattenute</th><th>Netto</th><th>Ferie h</th><th>PAR h</th><th>Mensa</th><th></th><th>PDF</th><th style="text-align:left">Note</th><th></th></tr>`+
+ rr.map(r=>`<tr class="${r.tipo=='tredicesima'?'tr13':''}"><td>${ML[r.mese-1]}${r.tipo=='tredicesima'?' · 13ª':''}</td><td>${r.giorni??'–'}</td>${cell(r.competenze)}${cell(r.trattenute)}<td><b>${eur2(r.netto)}</b></td><td>${nn(r.fe_saldo)}</td><td>${nn(r.par_saldo)}</td>${cell(r.mensa_tratt)}`+
+ `<td>${r.avvisi&&r.avvisi.length?`<span class="av" title="${r.avvisi.join('\n').replace(/"/g,'&quot;')}">⚠ ${r.avvisi.length}</span>`:''}</td><td class="n" title="${(r.note||'').replace(/"/g,'&quot;')}">${r.note||''}</td>`+
+ `<td><button type="button" class="bt" data-id="${r.id}">Modifica</button> <button type="button" class="bt" data-del="${r.id}" style="color:var(--rt)">Elimina</button></td></tr>`).join('');
+}
+const campi={{ campi|map(attribute=0)|list|tojson }};
+function modifica(id){
+ const r=R.find(x=>x.id==id);if(!r)return;
+ dform.open=true;f_mese.value=r.mese;f_anno.value=r.anno;f_tipo.value=r.tipo;f_pdf.value=r.pdf||'';f_note.value=r.note||'';
+ campi.forEach(a=>{document.getElementById('f_'+a).value=r[a]==null?'':String(r[a]).replace('.',',')});
+ ftit.scrollIntoView({behavior:'smooth',block:'center'});
+}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-id]');if(b){modifica(b.dataset.id);return}
+ const d=e.target.closest('[data-del]');
+ if(d&&confirm('Eliminare questo cedolino?')){const f=document.createElement('form');f.method='post';f.action='/stipendi/'+d.dataset.del+'/elimina';f.innerHTML='<input type="hidden" name="_t" value="{{ csrf }}">';document.body.appendChild(f);f.submit()}
+});
+{% if righe %}
+const ya=[...new Set(R.map(r=>r.anno))].sort((a,b)=>b-a);
+fa.innerHTML=ya.map(y=>`<option>${y}</option>`).join('');
+fa.onchange=tabella;met.onchange=t13.onchange=grafici;boxS.onchange=grafici;[boxA,boxB,boxC].forEach(b=>anniUI(b,grafici));
+const nowM=R.filter(r=>r.tipo=='mensile').slice(-1)[0]||R[R.length-1];
+const pad=n=>String(n).padStart(2,'0');
+const anniMese=[...new Set([...R.map(r=>r.anno),new Date().getFullYear()])].sort().reverse();
+(function(){const inp=mese,sl=document.createElement('select'),w=document.createElement('div');
+ sl.setAttribute('aria-label','Anno');w.className='mp';sl.innerHTML=anniMese.map(a=>`<option>${a}</option>`).join('');
+ sl.onchange=()=>{inp.value=sl.value+(inp.value.slice(4)||'-01');hero()};
+ inp.replaceWith(w);w.append(sl,inp);inp.onchange=hero;window.selAnno=sl})();
+const get=(a,m)=>R.find(r=>r.anno==a&&r.mese==m&&r.tipo=='mensile');
+const diff=(v,p,buono=1,f=eur2)=>{if(v==null||p==null)return null;const d=v-p;return `<i class="${(d>=0)==(buono>0)?'b':'m'}">${d>=0?'+':'−'}${f(Math.abs(d))}</i>`};
+function hero(){
+ const [a,m]=mese.value.split('-').map(Number);selAnno.value=a;
+ const r=get(a,m),pm=m>1?get(a,m-1):get(a-1,12),pa=get(a-1,m),t=R.find(x=>x.anno==a&&x.mese==m&&x.tipo=='tredicesima');
+ h0.textContent='Netto di '+ML[m-1].toLowerCase()+' '+a;
+ const L=(id,txt)=>document.getElementById(id).innerHTML=txt||'';
+ if(!r){k3.textContent=k1.textContent=k2.textContent='–';['n_m','n_a','n_t','c_m','c_a','c_o','t_m','t_a'].forEach(i=>L(i,''));L('n_m','Nessun cedolino per questo mese');fa.value=a;tabella();return}
+ k3.textContent=eur2(r.netto);k1.textContent=eur2(r.competenze);k2.textContent=eur2(r.trattenute);
+ const nmp=pm?ML[pm.mese-1].toLowerCase():'',cmp=(f,buono,sfx)=>{const x=pm&&diff(r[f],pm[f],buono),y=pa&&diff(r[f],pa[f],buono);return [x?`${x} su ${nmp}`:'',y?`${y} su ${ML[m-1].toLowerCase()} ${a-1}`:'']};
+ const [n1,n2]=cmp('netto',1),[c1,c2]=cmp('competenze',1),[t1,t2]=cmp('trattenute',-1);
+ L('n_m',n1);L('n_a',n2);L('c_m',c1);L('c_a',c2);L('t_m',t1);L('t_a',t2);
+ const ry=R.filter(x=>x.anno==a&&(x.mese<m||(x.mese==m&&x.tipo=='mensile')||(x.tipo=='tredicesima'&&x.mese<=m)));
+ L('n_t',`Da gennaio ${a}: <i>${eur(ry.reduce((s,x)=>s+x.netto,0))}</i>`+(t?` · 13ª inclusa (${eur2(t.netto)})`:''));
+ L('c_o',(r.fe_saldo!=null?`Ferie <i>${nn(r.fe_saldo,0)} h</i>`:'')+(r.par_saldo!=null?` · PAR <i>${nn(r.par_saldo,0)} h</i>`:''));
+ fa.value=a;tabella();
+}
+mese.value=nowM.anno+'-'+pad(nowM.mese);
+tabella();grafici();hero();
+window.aggiornaGrafici=grafici;
+{% else %}
+f_anno.value=new Date().getFullYear();
+{% endif %}
+</script>{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% block c %}
+<style>
+.tb{width:100%;border-collapse:collapse}
+.tb th{padding:8px;font-size:13px;color:var(--mu);border-bottom:1px solid var(--line);text-align:right}
+.tb td{padding:8px;text-align:right;font-weight:400;border-bottom:1px solid var(--line)}
+.tb th:first-child,.tb td:first-child{text-align:left}
+.tb tr.ko td{background:color-mix(in srgb,var(--rt) 9%,transparent)}
+.sc{overflow-x:auto}
+</style>
+<a href="/stipendi" class="mu">← Stipendi</a>
+<div class="row" style="margin:8px 0 16px;justify-content:flex-start;gap:12px"><h1 style="margin:0;flex:0 0 auto">Cedolino {{ mese }} {{ rec.anno }}{% if rec.tipo == 'tredicesima' %} · tredicesima{% endif %}</h1>
+<a href="/stipendi/pdf/{{ rec.id }}/file" class="x" style="flex:0 0 auto;min-width:0">Scarica PDF</a></div>
+<p class="mu" style="margin:0 0 16px">{{ rec.nome }} · caricato <span data-utc="{{ iso }}"></span></p>
+{% set nko = conf|rejectattr('ok')|list|length + ctrl|rejectattr('ok')|list|length %}
+<div class="card" style="margin-bottom:16px"><b class="{{ 'g' if not nko else 'r' }}" style="font-size:18px">{% if not nko %}✓ Tutto coincide{% else %}⚠ {{ nko }} cos{{ 'a' if nko == 1 else 'e' }} da controllare{% endif %}</b></div>
+<div class="card" style="margin-bottom:16px"><h2>PDF contro Check_stipendi</h2>
+{% if conf %}<div class="sc"><table class="tb"><tr><th>Voce</th><th>Cedolino PDF</th><th>Nel sito / Excel</th><th></th></tr>
+{% for x in conf %}<tr class="{{ '' if x.ok else 'ko' }}"><td>{{ x.titolo }}</td><td>{{ '{:,.2f}'.format(x.pdf).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td><td>{{ '–' if x.riga is none else '{:,.2f}'.format(x.riga).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td><td>{{ '✓' if x.ok else '⚠' }}</td></tr>{% endfor %}</table></div>
+{% else %}<p class="mu">Per questo mese non c'è ancora una riga in Check_stipendi.</p>{% endif %}
+<form method="post" action="/stipendi/pdf/{{ rec.id }}/applica" style="margin-top:12px" onsubmit="return confirm('Sostituire i valori della riga di questo mese con quelli letti dal PDF?')"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">{{ 'Usa i valori del PDF per questa riga' if ha_riga else 'Crea la riga dal PDF' }}</button></form></div>
+<div class="card" style="margin-bottom:16px"><h2>Controlli dentro il cedolino</h2>
+<div class="sc"><table class="tb"><tr><th>Controllo</th><th>Valore A</th><th>Valore B</th><th></th></tr>
+{% for x in ctrl %}<tr class="{{ '' if x.ok else 'ko' }}"><td>{{ x.nome }}</td><td>{{ '%.2f'|format(x.a)|replace('.', ',') }} {{ x.um }}</td><td>{{ '%.2f'|format(x.b)|replace('.', ',') }} {{ x.um }}</td><td>{{ '✓' if x.ok else '⚠' }}</td></tr>{% endfor %}</table></div></div>
+<div class="card"><h2>Voci del cedolino</h2><div class="sc"><table class="tb"><tr><th>Cod.</th><th style="text-align:left">Descrizione</th><th>Ore/gg</th><th>Trattenute</th><th>Competenze</th></tr>
+{% for r in voci %}<tr><td style="text-align:left">{{ r.cod }}</td><td style="text-align:left">{{ r.desc }}</td><td>{{ '%.2f'|format(r.get('ore'))|replace('.', ',') if r.get('ore') is not none else '' }}</td><td>{{ '%.2f'|format(r.get('tratt'))|replace('.', ',') if r.get('tratt') is not none else '' }}</td><td>{{ '%.2f'|format(r.get('comp'))|replace('.', ',') if r.get('comp') is not none else '' }}</td></tr>{% endfor %}</table></div></div>
+<script>document.querySelectorAll('[data-utc]').forEach(e=>e.textContent=new Date(e.dataset.utc).toLocaleString('it-IT',{dateStyle:'medium',timeStyle:'short'}));</script>
+{% endblock %}

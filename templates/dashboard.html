@@ -1,40 +1,43 @@
 {% extends "base.html" %}{% block c %}
-<style>.anni label{flex:1 1 72px}.anni span{padding:8px 0}.mp{display:flex;gap:8px;max-width:340px}.mp select{flex:0 0 100px;width:100px;min-width:0}.mp input{flex:1;min-width:0}main{max-width:2000px}.cols,.col{display:grid;gap:16px}.col{min-width:0;align-content:start}.col>.hero{margin:0}@media(min-width:1300px){.cols{grid-template-columns:1fr 1fr;align-items:start}}.grp{border-left:4px solid var(--in)}.sub{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;margin:18px 0 6px;padding-top:16px;border-top:1px solid var(--line)}</style>
+<style>.par{display:grid;gap:16px;grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:640px){.par{grid-template-columns:minmax(0,1fr)}}#vt{display:block;overflow:hidden}#vt .tl{display:block;margin-bottom:8px}#vt .tw{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 0;}#vt .ta{position:relative;display:flex;align-items:baseline;gap:8px;white-space:nowrap}#vt .ta i{width:10px;height:10px;border-radius:50%;align-self:center;flex:0 0 auto}#vt .ta b{color:var(--tx)}#vt .ta em{font-style:normal;opacity:.6}#vt .ta strong{color:var(--tx);font-size:1.08em}.hero small.cf{opacity:1;color:rgba(255,255,255,.72);margin-top:2px}.cf i{font-style:normal;font-weight:700}.cf .b{color:#5eead4}.cf .m{color:#ff8fb1}.anni label{flex:1 1 72px}.anni span{padding:8px 0}.mp{display:flex;gap:8px;max-width:340px}.mp select{flex:0 0 100px;width:100px;min-width:0}.mp input{flex:1;min-width:0}main{max-width:none}.cols,.col{display:grid;gap:16px}.col{min-width:0;align-content:start}.col>.hero{margin:0}@media(min-width:1300px){.cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}.grp{border-left:4px solid var(--in)}.sub{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;margin:18px 0 6px;padding-top:16px;border-top:1px solid var(--line)}</style>
 <div class="cols"><div class="col">
 <div class="row"><h1>Dashboard</h1><input type="month" id="mese" aria-label="Mese"></div>
+<div class="sbtns"><a href="/movimenti">Movimenti</a><a href="/impostazioni">Impostazioni</a></div>
 <section class="hero">
 <div><span>Saldo del mese</span><b id="k3">–</b></div>
-<div><span>Entrate</span><strong id="k1">–</strong></div>
-<div><span>Uscite</span><strong id="k2">–</strong><small id="k4"></small></div>
+<div><span>Entrate</span><strong id="k1">–</strong><small class="cf" id="en_m"></small><small class="cf" id="en_a"></small></div>
+<div><span>Uscite</span><strong id="k2">–</strong><small class="cf" id="us_m"></small><small class="cf" id="us_a"></small></div>
 </section>
-<div class="grid">
-<div class="card"><h2>Andamento dell'anno <span class="mu" style="font-size:14px;font-weight:400">Tocca un mese per selezionarlo</span></h2><div class="ch"><canvas id="c1"></canvas></div></div>
-<div class="card"><h2>Uscite per categoria</h2><div class="ch"><canvas id="c2"></canvas></div></div>
+<div class="grid par">
+<div class="card"><h2>Andamento dell'anno <span class="mu" style="font-size:14px;font-weight:400">Tocca un mese per selezionarlo</span></h2><div class="ch" data-ctl="mese"><canvas id="c1"></canvas></div></div>
+<div class="card"><h2>Uscite per categoria</h2><div class="ch" data-ctl="mese"><canvas id="c2"></canvas></div></div>
 <div class="card w"><h2>Budget del mese</h2><div id="bud"></div></div>
 <div class="card w"><h2>Confronto mese su mese</h2>
 <div class="row"><input type="month" id="ma" aria-label="Primo mese"><input type="month" id="mb" aria-label="Secondo mese"></div>
-<p class="mu" id="mm"></p><div class="ch" id="c3b"><canvas id="c3"></canvas></div></div>
+<p class="mu" id="mm"></p><div class="ch" id="c3b" data-ctl="ma,mb"><canvas id="c3"></canvas></div></div>
 </div>
 </div>
 <div class="col">
 <div class="card w"><h2>Confronto anno su anno</h2>
 <select id="met" aria-label="Dato"><option value="uscita">Uscite</option><option value="entrata">Entrate</option><option value="saldo">Saldo</option></select>
 <div id="boxA" class="anni"></div>
-<div class="ch" style="margin-top:12px"><canvas id="c4"></canvas></div></div>
+<div class="ch" data-ctl="met,boxA" style="margin-top:12px"><canvas id="c4"></canvas></div></div>
 <div class="card w grp"><h2>Analisi per voce</h2>
 <select id="vv" aria-label="Voce"></select>
 <div id="boxV" class="anni"></div>
 <h3 class="sub">Confronto anno su anno</h3>
-<p class="mu" id="vt"></p><div class="ch"><canvas id="c5"></canvas></div>
+<p class="mu" id="vt"></p><div class="ch" data-ctl="vv,boxV"><canvas id="c5"></canvas></div>
 <h3 class="sub">Andamento cumulato</h3>
-<div class="ch"><canvas id="c6"></canvas></div></div>
+<div class="ch" data-ctl="vv,boxV"><canvas id="c6"></canvas></div></div>
 </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
 const MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const P=['#4f46e5','#0f9d8a','#e0457b','#f5a524','#0ea5e9','#8b5cf6','#84cc16','#f97316','#14b8a6','#ec4899','#64748b','#eab308'];
-Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.font.size=window.innerWidth>=2600?17:window.innerWidth>=1900?14:12;
 let D,ch={},ANNI=[];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function temaGrafici(){Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line')}
@@ -46,18 +49,51 @@ const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&qu
 const cats=(k,t)=>(D.mesi[k]||{})[t]||{};
 const tot=(k,t)=>Object.values(cats(k,t)).reduce((a,b)=>a+b,0);
 const prev=k=>{const[y,m]=k.split('-').map(Number);return m==1?`${y-1}-12`:`${y}-${pad(m-1)}`};
+const MLUN=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+// nota con freccia e % rispetto a un periodo; vuota se il periodo di confronto non ha dati.
+// piuBuono: true per le entrate (salire e' positivo), false per le uscite (salire e' negativo)
+function nota(el,cur,base,quando,piuBuono){
+ if(!(base>0)){el.innerHTML='';return}
+ const p=(cur-base)/base*100,r=Math.round(p);
+ if(r===0){el.innerHTML=`<i>＝ 0%</i> ${quando}`;return}
+ const su=p>0,buono=su===piuBuono;
+ el.innerHTML=`<i class="${buono?'b':'m'}">${su?'▲ +':'▼ −'}${Math.abs(r)}%</i> ${quando}`;
+}
+// scrive dentro ogni spicchio abbastanza largo la % sul totale e l'importo, in piccolo
+const chiaro=h=>{const c=[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4);return .2126*c[0]+.7152*c[1]+.0722*c[2]>.3};
+const etichetteCiambella={id:'etichetteCiambella',afterDatasetsDraw(chart){
+ const ds=chart.data.datasets[0],tot=ds.data.reduce((a,b)=>a+b,0),ctx=chart.ctx;
+ if(!tot)return;
+ chart.getDatasetMeta(0).data.forEach((arc,i)=>{
+  const a=arc.getProps(['x','y','startAngle','endAngle','innerRadius','outerRadius'],true),v=ds.data[i];
+  const r=(a.innerRadius+a.outerRadius)/2,spessore=a.outerRadius-a.innerRadius,lungo=(a.endAngle-a.startAngle)*r;
+  const k=Math.max(1,Math.min(3,spessore/68));
+  if(v/tot<.05||spessore<34||lungo<46*k)return;
+  const m=(a.startAngle+a.endAngle)/2,x=a.x+Math.cos(m)*r,y=a.y+Math.sin(m)*r;
+  ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=chiaro(P[i%P.length])?'#14213d':'#fff';
+  ctx.font=`700 ${Math.round(12*k)}px 'DM Sans',sans-serif`;ctx.fillText(Math.round(v/tot*100)+'%',x,y-7*k);
+  ctx.font=`400 ${Math.round(11*k)}px 'DM Sans',sans-serif`;ctx.fillText(eur(v),x,y+7*k);
+  ctx.restore();
+ });
+}};
 function draw(id,cfg){ch[id]&&ch[id].destroy();cfg.options=Object.assign({maintainAspectRatio:false},cfg.options);ch[id]=new Chart(document.getElementById(id),cfg)}
 
 function render(){
  syncAnni();
- const k=mese.value,y=k.slice(0,4),e=tot(k,'entrata'),u=tot(k,'uscita'),up=tot(prev(k),'uscita');
+ const k=mese.value,y=k.slice(0,4),e=tot(k,'entrata'),u=tot(k,'uscita');
  k1.textContent=eur(e);k2.textContent=eur(u);k3.textContent=eur(e-u);k3.style.color=e-u>=0?'#5eead4':'#ff8fb1';
- k4.textContent=up?`${u>=up?'▲':'▼'} ${Math.abs((u-up)/up*100).toFixed(0)}% rispetto al mese prima`:'';
+ const kp=prev(k),ka=`${+y-1}-${k.slice(5)}`,qa=`rispetto a ${MLUN[+k.slice(5)-1]} ${+y-1}`;
+ nota(en_m,e,tot(kp,'entrata'),'rispetto al mese prima',true);
+ nota(en_a,e,tot(ka,'entrata'),qa,true);
+ nota(us_m,u,tot(kp,'uscita'),'rispetto al mese prima',false);
+ nota(us_a,u,tot(ka,'uscita'),qa,false);
  const serie=(t)=>MESI.map((_,i)=>tot(`${y}-${pad(i+1)}`,t));
  draw('c1',{type:'bar',data:{labels:MESI,datasets:[{label:'Entrate',data:serie('entrata'),backgroundColor:'#0f9d8a',borderRadius:6},{label:'Uscite',data:serie('uscita'),backgroundColor:'#e0457b',borderRadius:6}]},
   options:{onClick:(ev,els)=>{if(els.length){mese.value=`${y}-${pad(els[0].index+1)}`;mese.onchange()}},onHover:(ev,els)=>{ev.native.target.style.cursor=els.length?'pointer':'default'}}});
  const cc=Object.entries(cats(k,'uscita')).sort((a,b)=>b[1]-a[1]);
- draw('c2',{type:'doughnut',data:{labels:cc.map(x=>x[0]),datasets:[{data:cc.map(x=>x[1]),backgroundColor:P,borderWidth:2,borderColor:css('--card')}]},options:{cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
+ const totU=cc.reduce((a,x)=>a+x[1],0);
+ draw('c2',{type:'doughnut',plugins:[etichetteCiambella],data:{labels:cc.map(x=>x[0]),datasets:[{data:cc.map(x=>x[1]),backgroundColor:P,borderWidth:2,borderColor:css('--card')}]},options:{cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10}},tooltip:{callbacks:{label:c=>` ${c.label}: ${eur(c.parsed)} (${totU?(c.parsed/totU*100).toFixed(1).replace('.',','):0}%)`}}}}});
  const sp=cats(k,'uscita');
  bud.innerHTML=Object.entries(D.budget).map(([c,b])=>{const s=sp[c]||0,p=s/b*100;
   return `<div class="bl"><span>${esc(c)}</span><span class="${p>100?'r':'mu'}">${eur(s)} su ${eur(b)}</span></div><div class="bar"><i style="width:${Math.min(p,100)}%;${p>100?'background:var(--r)':''}"></i></div>`}).join('')||'<p class="mu">Nessun budget impostato. Aggiungilo da Impostazioni.</p>';
@@ -84,7 +120,7 @@ function serieVoce(y){
 function confrontoVoce(){
  const ys=anniSel(boxV),col=y=>P[ANNI.indexOf(y)%P.length];
  const oggi=new Date(),mx=y=>y==String(oggi.getFullYear())?oggi.getMonth():11;
- vt.textContent=ys.length?'Totale annuo: '+ys.map(y=>`${y} ${eur(serieVoce(y).reduce((a,b)=>a+b,0))}`).join(' · '):'Seleziona almeno un anno.';
+ vt.innerHTML=ys.length?`<span class="tl">Totale annuo</span><div class="tw">`+ys.map(y=>`<span class="ta"><i style="background:${col(y)}"></i><b>${y}</b><em>→</em><strong>${eur(serieVoce(y).reduce((a,b)=>a+b,0))}</strong></span>`).join('')+'</div>':'Seleziona almeno un anno.';
  draw('c5',{type:'bar',data:{labels:MESI,datasets:ys.map(y=>({label:y,data:serieVoce(y),backgroundColor:col(y),borderRadius:5}))},options:{interaction:{mode:'index',intersect:false}}});
  draw('c6',{type:'line',data:{labels:MESI,datasets:ys.map(y=>{let s=0;return{label:y,data:serieVoce(y).map((v,i)=>i>mx(y)?null:(s+=v)),borderColor:col(y),backgroundColor:col(y)+'22',tension:.25,pointRadius:3}})},options:{interaction:{mode:'index',intersect:false}}});
 }

@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% block c %}
 <style>
-main{max-width:2000px}
+main{max-width:none}
+.stat>.mu:first-child{display:block;min-height:3em}.stat b.sit{font-size:22px;line-height:1.25}.sb{display:block;font-size:13px;color:var(--mu);margin-top:2px}
 .alert{display:grid;gap:2px;margin:0 0 16px;padding:14px 18px;border-radius:16px;border:1.5px solid var(--r);background:color-mix(in srgb,var(--r) 12%,var(--card));color:var(--r)}.alert b{font-size:18px}.alert span{color:var(--tx);font-size:14px}
 .pg,.lft,.rgt,.duo{display:grid;gap:16px}
 .pg>div{min-width:0}.lft,.rgt{align-content:start}
@@ -8,7 +9,7 @@ main{max-width:2000px}
 .duo{grid-template-columns:1fr 1fr;align-items:start}
 @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}.duo{grid-template-columns:1fr}}
 @media(min-width:1200px){
-.pg{grid-template-columns:1.1fr 1fr;align-items:start}
+.pg{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}
 .rgt{position:sticky;top:76px}
 .lst{display:flex;flex-direction:column;max-height:calc(100vh - 100px)}
 .scr{overflow-y:auto}}
@@ -21,13 +22,17 @@ main{max-width:2000px}
 <div class="pg">
 <div class="lft">
 <div class="stats">
-<div class="card stat"><span class="mu">Lezioni svolte</span><b>{{ n_tot }}</b></div>
-<div class="card stat"><span class="mu">Ore di lezione</span><b>{{ ('%.2f'|format(ore_tot)).rstrip('0').rstrip('.') }}</b></div>
-<div class="card stat"><span class="mu">Incassato finora</span><b class="g">{{ '%.0f'|format(incassato) }} €</b></div>
+{% macro hh(x) %}{{ x|ore }} {{ 'ora' if x == 1 else 'ore' }}{% endmacro %}
+<div class="card stat"><span class="mu">Ore svolte</span><b>{{ ore_svolte|ore }}</b>{% if ore_prog %}<span class="sb">+ {{ ore_prog|ore }} in programma</span>{% endif %}</div>
+<div class="card stat"><span class="mu">Totale incassato finora</span><b class="g">{{ ('%.0f' if incassato == incassato|round(0) else '%.2f')|format(incassato) }} €</b>{% if credito %}<span class="sb">di cui {{ ('%.0f' if credito == credito|round(0) else '%.2f')|format(credito) }} € di credito</span>{% endif %}</div>
 <div class="card stat"><span class="mu">Da incassare</span><b class="{{ 'r' if n else 'g' }}">{{ '%.0f'|format(dovuto) }} €</b></div>
+<div class="card stat"><span class="mu">Situazione</span>
+{% if debito_ore > 0 %}<b class="r sit">Debito di {{ hh(debito_ore) }}</b>{% if credito %}<span class="sb">Credito residuo: {{ '%.2f'|format(credito) }} €</span>{% endif %}
+{% elif credito > 0 %}<b class="g sit">Credito di {% if credito_ore %}{{ hh(credito_ore) }}{% else %}{{ '%.2f'|format(credito) }} €{% endif %}</b>
+{% else %}<b class="sit">In regola</b>{% endif %}</div>
 </div>
 <div class="card"><div class="row"><h2 style="margin:0">Andamento delle lezioni</h2><select id="anno" aria-label="Anno" style="max-width:140px"></select></div>
-<p class="mu" id="riep" style="margin:8px 0 0"></p><div class="ch" style="margin-top:8px"><canvas id="cg"></canvas></div>
+<p class="mu" id="riep" style="margin:8px 0 0"></p><div class="ch" data-ctl="anno" style="margin-top:8px"><canvas id="cg"></canvas></div>
 <p class="mu" style="font-size:14px;margin:8px 0 0">La media a settimana divide le lezioni di un mese per le sue settimane (il mese in corso conta solo i giorni trascorsi).</p></div>
 <div class="duo">
 <div class="card"><h2>Registra un pagamento</h2>
@@ -61,6 +66,8 @@ main{max-width:2000px}
 </table></div></div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
 const S={{ serie|tojson }},MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -68,7 +75,7 @@ const anni=[...new Set(S.map(x=>x[0].slice(0,4)))].sort().reverse();
 anno.innerHTML=anni.map(a=>`<option>${a}</option>`).join('');
 let g;
 function disegna(){
- Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
+ Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.font.size=window.innerWidth>=2600?17:window.innerWidth>=1900?14:12;Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
  if(g)g.destroy();
  if(!anni.length){riep.textContent='Ancora nessuna lezione.';anno.style.display='none';return}
  const y=+anno.value,oggi=new Date(),corrente=y==oggi.getFullYear();

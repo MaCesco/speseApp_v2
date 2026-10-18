@@ -1,26 +1,110 @@
 <!doctype html>
 <html lang="it"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Le mie spese</title>
 <script>try{document.documentElement.dataset.theme=localStorage.getItem('tema')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light')}catch(e){}</script>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head><body>
-{% if session.uid %}<nav>
+{% if session.uid %}{% set pagina_corrente = request.path %}<nav aria-label="Principale">
 <span class="logo">Le mie spese</span>
-<a href="/">Dashboard</a><a href="/movimenti">Movimenti</a><a href="/ripetizioni">Ripetizioni</a><a href="/impostazioni">Impostazioni</a><a href="/logout">Esci</a>
-<button type="button" class="x" id="tema"></button>
-<a class="fab" href="/nuovo">+ Aggiungi</a>
+<a href="/"{% if pagina_corrente == '/' or pagina_corrente.startswith(('/movimenti', '/impostazioni', '/nuovo')) %} aria-current="page"{% endif %}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Dashboard</span></a>
+<a href="/ripetizioni"{% if pagina_corrente.startswith(('/ripetizioni', '/lezione', '/modifica-lezione')) %} aria-current="page"{% endif %}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5-10-5zM6 11.5V16c0 1.5 3 3 6 3s6-1.500 6-3v-4.500M22 9v6"/></svg><span>Ripetizioni</span></a>
+<a href="/stipendi"{% if pagina_corrente.startswith(('/stipendi')) %} aria-current="page"{% endif %}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.500"/><path d="M6 10v.01M18 14v.01"/></svg><span>Stipendi</span></a>
+<form method="post" action="/logout" class="solo-desk" style="margin:0"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Esci</button></form>
+<button type="button" class="x tema solo-desk"></button>
+<a class="fab" href="/nuovo"{% if pagina_corrente == '/nuovo' %} aria-current="page"{% endif %}><span class="lg">+ Aggiungi</span><span class="sm">+ Nuovo</span></a>
 </nav>{% endif %}
 <main>
-{% for m in get_flashed_messages() %}<div class="flash">{{ m }}</div>{% endfor %}
+{% for m in get_flashed_messages() %}<div class="flash" role="status">{{ m }}</div>{% endfor %}
 {% block c %}{% endblock %}
 </main>
 <script>(function(){
-const T=document.documentElement,b=document.getElementById('tema');
-if(!b)return;
-const mostra=()=>b.textContent=T.dataset.theme=='dark'?'☀️ Chiaro':'🌙 Scuro';
-b.onclick=()=>{T.dataset.theme=T.dataset.theme=='dark'?'light':'dark';try{localStorage.setItem('tema',T.dataset.theme)}catch(e){};mostra();if(window.aggiornaGrafici)aggiornaGrafici()};
+const T=document.documentElement,bs=document.querySelectorAll('.tema');
+if(!bs.length)return;
+const mostra=()=>bs.forEach(b=>b.textContent=T.dataset.theme=='dark'?'☀️ Chiaro':'🌙 Scuro');
+bs.forEach(b=>b.onclick=()=>{T.dataset.theme=T.dataset.theme=='dark'?'light':'dark';try{localStorage.setItem('tema',T.dataset.theme)}catch(e){};mostra();if(window.aggiornaGrafici)aggiornaGrafici()});
 mostra();
+})()</script>
+<script>(function(){
+const OPEN='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',CLOSE='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',RESET='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>';
+const HINT=matchMedia('(pointer:coarse)').matches?'Pizzica con due dita per ingrandire · trascina per spostarti':'Rotella per ingrandire · trascina per spostarti · doppio clic per ripristinare';
+let aperto=null;
+const grafico=ch=>{const cv=ch.querySelector('canvas');return window.Chart&&cv?Chart.getChart(cv):null};
+const zoomabile=g=>!!g&&!['doughnut','pie'].includes(g.config.type)&&!!Chart.registry.plugins.get('zoom');
+function opzioniZoom(g,on){
+ if(!on)return{zoom:{wheel:{enabled:false},pinch:{enabled:false}},pan:{enabled:false}};
+ const m=g.options.indexAxis==='y'?'y':'x';
+ const seg=c=>{const e=c.chart.canvas.closest('.ch');if(e)e.classList.toggle('ch-zd',!!c.chart.isZoomedOrPanned())};
+ return{zoom:{wheel:{enabled:true,speed:.12},pinch:{enabled:true},mode:m,onZoomComplete:seg},pan:{enabled:true,mode:m,threshold:3,onPanComplete:seg},limits:{[m]:{min:'original',max:'original',minRange:2}}};
+}
+// il plugin attiva il tocco (pizzico e trascinamento) solo se e' acceso quando nasce il grafico: lo avviamo noi alla prima apertura
+function tocco(g){
+ if(g.$tocco||typeof Hammer==='undefined')return;g.$tocco=1;
+ try{Chart.registry.plugins.get('zoom').start(g,{},{pan:{enabled:true,threshold:3},zoom:{pinch:{enabled:true}}})}catch(e){}
+}
+function zoom(ch,on){
+ const g=grafico(ch);if(!zoomabile(g))return false;
+ if(on)tocco(g);else if(g.resetZoom)g.resetZoom('none');
+ g.options.plugins.zoom=opzioniZoom(g,on);g.update('none');
+ g.canvas.style.touchAction=on?'none':'';
+ return true;
+}
+// i grafici ridisegnati mentre sono a piena pagina (cambio anno, mese, voce...) mantengono lo zoom attivo
+if(window.Chart)Chart.register({id:'zoomPiena',beforeInit(c){if(aperto&&aperto.ch.contains(c.canvas)&&zoomabile(c)){c.options.plugins.zoom=opzioniZoom(c,true)}},afterInit(c){if(aperto&&aperto.ch.contains(c.canvas)&&zoomabile(c)){tocco(c);c.canvas.style.touchAction='none';c.canvas.closest('.ch').classList.remove('ch-zd')}}});
+// dopo il cambio di dimensione il grafico viene ridisegnato subito, senza animazione
+function ridisegna(ch){requestAnimationFrame(()=>{const g=grafico(ch);if(g){g.resize();g.update('none')}})}
+function titolo(ch){
+ for(let s=ch.previousElementSibling;s;s=s.previousElementSibling){
+  const h=s.matches('h2,h3')?s:s.querySelector('h2,h3');
+  if(h)return [...h.childNodes].filter(n=>n.nodeType==3).map(n=>n.textContent).join('').trim()||h.textContent.trim();
+ }
+ const c=ch.closest('.card'),h=c&&c.querySelector('h2');return h?h.firstChild.textContent.trim():'Grafico';
+}
+function chiudi(){
+ if(!aperto)return;const{ch,b,ph,mossi,ro}=aperto;
+ if(ro)ro.disconnect();
+ zoom(ch,false);aperto=null;
+ mossi.forEach(([el,mk])=>mk.replaceWith(el));
+ if(ph)ph.remove();
+ ch.style.paddingTop='';
+ ch.classList.remove('ch-full','ch-hc','ch-zm','ch-zd');ch.removeAttribute('role');ch.removeAttribute('aria-modal');ch.removeAttribute('aria-label');
+ document.body.classList.remove('ch-lock');b.innerHTML=OPEN;b.setAttribute('aria-label','Ingrandisci grafico');b.focus();
+ ridisegna(ch);
+}
+function apri(ch,b){
+ chiudi();
+ const cs=getComputedStyle(ch),ph=document.createElement('div');ph.className='ch-ph';ph.style.height=ch.offsetHeight+'px';ph.style.marginTop=cs.marginTop;ph.style.marginBottom=cs.marginBottom;ch.before(ph);
+ aperto={ch,b,ph,mossi:[],ro:null};
+ const t=titolo(ch),ctl=ch.querySelector('.ch-ctl');
+ ch.querySelector('.ch-bar .t').textContent=t;
+ // i selettori che comandano il grafico (anno, mese, voce...) vengono portati qui sopra finche' e' ingrandito
+ (ch.dataset.ctl||'').split(',').map(x=>x.trim()).filter(Boolean).forEach(id=>{
+  let el=document.getElementById(id);if(!el)return;
+  el=el.closest('label.lb')||(el.parentElement.classList.contains('mp')?el.parentElement:el);
+  if(ctl.contains(el))return;
+  const mk=document.createComment('ctl');el.before(mk);ctl.append(el);aperto.mossi.push([el,mk]);
+ });
+ const hc=aperto.mossi.length>0;
+ ch.classList.add('ch-full');ch.classList.toggle('ch-hc',hc);ch.setAttribute('role','dialog');ch.setAttribute('aria-modal','true');ch.setAttribute('aria-label',t);
+ if(hc){
+  const pad=()=>{ch.style.paddingTop=(60+ctl.offsetHeight+8)+'px'};pad();
+  aperto.ro=new ResizeObserver(()=>{pad();ridisegna(ch)});aperto.ro.observe(ctl);
+ }
+ ch.classList.toggle('ch-zm',zoom(ch,true));
+ document.body.classList.add('ch-lock');b.innerHTML=CLOSE;b.setAttribute('aria-label','Chiudi grafico a piena pagina');b.focus();
+ ridisegna(ch);
+}
+document.querySelectorAll('.ch').forEach(ch=>{
+ const bar=document.createElement('div');bar.className='ch-bar';bar.innerHTML='<span class="t"></span><small class="h"></small>';bar.querySelector('.h').textContent=HINT;
+ const ctl=document.createElement('div');ctl.className='ch-ctl';
+ const b=document.createElement('button');b.type='button';b.className='ch-x';b.innerHTML=OPEN;b.setAttribute('aria-label','Ingrandisci grafico');b.title='Ingrandisci a piena pagina';
+ b.onclick=()=>aperto&&aperto.ch===ch?chiudi():apri(ch,b);
+ const rs=document.createElement('button');rs.type='button';rs.className='ch-x ch-rs';rs.innerHTML=RESET;rs.setAttribute('aria-label','Ripristina lo zoom');rs.title='Ripristina lo zoom';
+ const azzera=()=>{const g=grafico(ch);if(g&&g.resetZoom)g.resetZoom();ch.classList.remove('ch-zd')};
+ rs.onclick=azzera;ch.addEventListener('dblclick',()=>{if(aperto&&aperto.ch===ch)azzera()});
+ ch.append(bar,ctl,b,rs);
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')chiudi()});
 })()</script>
 </body></html>

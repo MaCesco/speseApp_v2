@@ -1,10 +1,11 @@
 {% extends "base.html" %}{% block c %}
+<a href="/" class="back">← Dashboard</a>
 <div class="row" style="margin-bottom:16px"><h1>Movimenti</h1>
 <form method="get"><input type="month" name="mese" value="{{ mese }}" onchange="this.form.submit()"></form></div>
 <div class="card"><table>
 {% for r in righe %}<tr>
 <td class="mu">{{ r.data.strftime('%d/%m') }}</td>
-<td>{{ r.categoria }}<div class="mu">{{ r.descrizione }}{% if r.fonte != 'manuale' %} ({{ r.fonte }}){% endif %}</div></td>
+<td>{{ r.categoria }}<div class="mu">{{ r.descrizione }}{% if r.fonte == 'ricorrente' %} (ricorrente){% endif %}</div></td>
 <td class="{{ 'g' if r.tipo == 'entrata' else 'r' }}">{{ '+' if r.tipo == 'entrata' else '−' }}{{ '%.2f'|format(r.importo) }} €</td>
 <td><form method="post" action="/elimina/{{ r.id }}" onsubmit="return confirm('Eliminare questo movimento?')">
 <input type="hidden" name="_t" value="{{ csrf }}"><button class="x" aria-label="Elimina">✕</button></form></td>

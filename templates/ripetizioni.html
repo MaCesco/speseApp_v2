@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block c %}
 <style>
-main{max-width:2000px}
+main{max-width:none}
 .pg,.lft,.rgt,.duo{display:grid;gap:16px}
 .pg>div{min-width:0}.lft,.rgt{align-content:start}
 .stats{grid-template-columns:repeat(4,1fr);margin:0}
@@ -20,11 +20,14 @@ main{max-width:2000px}
 .stud td:nth-child(5){font-weight:700;white-space:nowrap}
 @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}.duo{grid-template-columns:1fr}}
 @media(min-width:1200px){
-.pg{grid-template-columns:1.05fr 1fr;align-items:start}
+.pg{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}
 .rgt{position:sticky;top:76px}
 .lst{display:flex;flex-direction:column;max-height:calc(100vh - 100px)}
 .scr{overflow-y:auto}}
 </style>
+<script>document.addEventListener('DOMContentLoaded',function(){const T={{ tariffe|tojson }};const n=document.querySelector('input[name=studente]'),t=document.getElementById('tar');let k=null;
+function suggerisci(){const v=n.value.trim(),c=Object.prototype.hasOwnProperty.call(T,v)?v:'';if(c===k)return;k=c;t.value=c?T[c]:(v?0:'')}
+n.addEventListener('input',suggerisci);n.addEventListener('change',suggerisci)})</script>
 <datalist id="al">{% for a in elenco %}<option value="{{ a.s.nome }}">{% endfor %}</datalist>
 <div class="row" style="margin-bottom:16px"><h1>Ripetizioni</h1><a href="/ripetizioni/calendario" style="flex:0 0 auto;min-width:0;background:var(--in);color:#fff;text-decoration:none;border-radius:12px;padding:10px 18px;font-weight:700">Calendario settimanale</a><a href="/ripetizioni/confronti" style="flex:0 0 auto;min-width:0;background:var(--in);color:#fff;text-decoration:none;border-radius:12px;padding:10px 18px;font-weight:700">Confronti tra anni e mesi →</a></div>
 <div class="pg">
@@ -49,7 +52,7 @@ main{max-width:2000px}
 </div>
 <p class="mu" style="font-size:13px;margin:0">Il numero «Attuale» è verde se sei pari o sopra al periodo precedente negli stessi giorni, rosso se sei sotto.</p>
 <div class="card"><div class="row"><h2 style="margin:0">Incassi mese per mese</h2><select id="anno" aria-label="Anno" style="max-width:140px"></select></div>
-<div class="ch" style="margin-top:12px"><canvas id="cg"></canvas></div>
+<div class="ch" data-ctl="anno" style="margin-top:12px"><canvas id="cg"></canvas></div>
 <p class="mu" style="font-size:14px;margin:8px 0 0">Conta le lezioni pagate nel mese in cui sono state svolte. Le medie considerano i mesi con incassi; il mese in corso è escluso.</p></div>
 <div class="duo">
 <div class="card"><h2>Nuova lezione</h2>
@@ -59,13 +62,14 @@ main{max-width:2000px}
 <div class="row"><input name="inizio" type="time" required aria-label="Inizio"><input name="fine" type="time" required aria-label="Fine"></div>
 <input name="materia" placeholder="Materia">
 <select name="modalita"><option>Presenza</option><option>Online</option></select>
-<input name="tariffa" type="number" step="0.5" min="0" placeholder="Tariffa €/h (solo per un nuovo allievo)">
+<input name="tariffa" id="tar" type="number" step="0.5" min="0" placeholder="Importo €/h" aria-label="Importo €/h">
 <button>Aggiungi lezione</button></form></div>
 <div class="card"><h2>Importa ed esporta</h2>
 <p style="margin:0 0 6px"><a href="/ripetizioni/esporta-fogli" style="font-weight:700;color:var(--in)">Scarica Excel aggiornato</a> <span class="mu">(un foglio per allievo, come il tuo file: si può ricaricare qui)</span></p>
-{% if ultimo_file %}<p style="margin:0 0 6px">Ultimo file caricato: <b>{{ ultimo_file.nome }}</b><br><span class="mu" data-utc="{{ ultimo_file.iso }}"></span> · <a href="/ripetizioni/file" style="font-weight:700;color:var(--in)">Scarica</a></p>{% else %}<p class="mu" style="margin:0 0 6px">Nessun file caricato finora.</p>{% endif %}
-<p class="mu">Il nuovo file sostituisce il precedente: lezioni e pagamenti vengono aggiornati con quello che c'è nel file (rosso = da pagare, verde = pagata). Il file resta salvato sul server, così gli stessi dati si vedono da ogni dispositivo. Le lezioni aggiunte a mano dal sito non vengono toccate.</p>
-<form class="f" method="post" action="/ripetizioni/importa" enctype="multipart/form-data" onsubmit="return confirm('Il nuovo file sostituirà i dati importati dal file precedente. Continuare?')"><input type="hidden" name="_t" value="{{ csrf }}">
+{% if ultimo_file %}<p style="margin:0 0 6px">Ultimo file caricato: <b>{{ ultimo_file.nome }}</b><br><span class="mu" data-utc="{{ ultimo_file.iso }}"></span> · <a href="/ripetizioni/file" style="font-weight:700;color:var(--in)">Scarica originale</a></p>
+<form method="post" action="/ripetizioni/file/elimina" style="margin:0 0 10px" data-msg="Eliminare il file «{{ ultimo_file.nome }}» e tutte le lezioni e gli allievi che arrivano da lui? Le lezioni inserite a mano dal sito non vengono toccate." onsubmit="return confirm(this.dataset.msg)"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Elimina file caricato</button></form>{% else %}<p class="mu" style="margin:0 0 6px">Nessun file caricato finora.</p>{% endif %}
+<p class="mu">Il nuovo file sostituisce completamente il precedente: allievi, lezioni, pagamenti e crediti vengono eliminati e rimpiazzati con quello che c'è nel file (rosso = da pagare, verde = pagata), comprese le lezioni aggiunte a mano dal sito. Prima di caricare, puoi scaricare l'Excel aggiornato qui sopra come copia di sicurezza. Il file resta salvato sul server, così gli stessi dati si vedono da ogni dispositivo.</p>
+<form class="f" method="post" action="/ripetizioni/importa" enctype="multipart/form-data" onsubmit="return confirm('Tutti i dati di Ripetizioni attuali (allievi, lezioni, pagamenti e crediti, anche quelli inseriti a mano) verranno ELIMINATI e sostituiti con il contenuto di questo file. Continuare?')"><input type="hidden" name="_t" value="{{ csrf }}">
 <input type="file" name="file" accept=".xlsx" required><button>Carica e sostituisci</button></form></div>
 </div>
 </div>
@@ -83,6 +87,8 @@ main{max-width:2000px}
 </table></div></div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
 const INC={{ inc_mesi|tojson }},MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -91,7 +97,7 @@ const anni=[...new Set(Object.keys(INC).map(k=>k.slice(0,4)))].sort().reverse();
 anno.innerHTML=anni.map(a=>`<option>${a}</option>`).join('');
 let g;
 function disegna(){
- Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
+ Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.font.size=window.innerWidth>=2600?17:window.innerWidth>=1900?14:12;Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
  if(g)g.destroy();
  if(!anni.length){anno.style.display='none';return}
  const y=+anno.value,oggi=new Date(),corr=y==oggi.getFullYear();

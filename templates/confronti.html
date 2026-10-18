@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block c %}
 <style>
-main{max-width:2000px}
+main{max-width:none}
 .cg{display:grid;gap:16px}.cg>*{min-width:0}
 .stats{grid-template-columns:repeat(3,1fr);margin:0 0 16px}
 .lb{display:grid;gap:4px;font-size:14px;font-weight:700;color:var(--mu)}
@@ -10,7 +10,7 @@ main{max-width:2000px}
 .cmp th{padding:8px 6px;font-size:13px;color:var(--mu);border-bottom:1px solid var(--line)}
 .cmp td{font-weight:400;white-space:nowrap}
 .cmp th,.cmp td{text-align:right}.cmp th:first-child,.cmp td:first-child{text-align:left}
-@media(min-width:1100px){.cg{grid-template-columns:1fr 1fr}}
+@media(min-width:1100px){.cg{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 @media(max-width:700px){.stats{grid-template-columns:1fr}}
 </style>
 <a href="/ripetizioni" class="mu">← Ripetizioni</a>
@@ -27,17 +27,19 @@ main{max-width:2000px}
 <div class="card stat"><span class="mu" id="l3">Variazione</span><b id="k3">–</b></div>
 </div>
 <div class="cg">
-<div class="card"><h2 id="t1">Totale per anno</h2><p class="mu" id="s1" style="font-size:14px;margin:0 0 8px"></p><div class="ch"><canvas id="c1"></canvas></div></div>
-<div class="card"><h2 id="t2">Mese per mese, anno su anno</h2><div class="ch"><canvas id="c2"></canvas></div></div>
+<div class="card"><h2 id="t1">Totale per anno</h2><p class="mu" id="s1" style="font-size:14px;margin:0 0 8px"></p><div class="ch" data-ctl="met,per,boxA"><canvas id="c1"></canvas></div></div>
+<div class="card"><h2 id="t2">Mese per mese, anno su anno</h2><div class="ch" data-ctl="met,per,boxA"><canvas id="c2"></canvas></div></div>
 <div class="card"><h2>Confronto tra due mesi: ore svolte e incasso</h2>
 <div class="row" style="align-items:end;margin-bottom:12px">
 <label class="lb">Primo mese<div class="row" style="flex-wrap:nowrap"><select id="am"></select><select id="ay"></select></div></label>
 <label class="lb">Secondo mese<div class="row" style="flex-wrap:nowrap"><select id="bm"></select><select id="by"></select></div></label></div>
 <table class="cmp" id="cmpT"></table></div>
 <div class="card"><div class="row"><h2 id="t3" style="margin:0">Stesso mese, negli anni</h2><select id="tm" aria-label="Mese" style="max-width:180px"></select></div>
-<div class="ch" style="margin-top:12px"><canvas id="c3"></canvas></div></div>
+<div class="ch" data-ctl="met,tm" style="margin-top:12px"><canvas id="c3"></canvas></div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
 const D={{ dati|tojson }};
 const ML=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'],MS=ML.map(m=>m.slice(0,3));
@@ -63,17 +65,18 @@ function barre(id,ys,fn,inCorso=true){
    scales:{y:{beginAtZero:true,ticks:{callback:v=>m.f(v)}}}}});
 }
 function render(){
- Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
+ Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.font.size=window.innerWidth>=2600?17:window.innerWidth>=1900?14:12;Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
  const m=M[met.value],ys=sel(),a=yt(cy,UP),b=yt(cy-1,UP),d=a-b,corto=per.value=='p';
  const pp=UP==1?'gennaio':'gennaio–'+ML[UP-1].toLowerCase();
  l1.textContent=`${m.L}, ${pp} ${cy}`;l2.textContent=`${m.L}, ${pp} ${cy-1}`;l3.textContent=`Variazione ${cy} rispetto al ${cy-1}`;
  k1.textContent=m.f(a)+m.u;k2.textContent=m.f(b)+m.u;k3.textContent=b?(d>0?'+':'')+(d/b*100).toFixed(0)+'%':'–';k3.className=d>=0?'g':'r';
  t1.textContent=`${m.L}: totale di ogni anno`+(corto?` (solo ${pp})`:'');
  s1.textContent=corto?`Ogni barra somma solo ${pp} di quell'anno, così gli anni si confrontano alla pari.`:`Ogni barra è il totale di un anno intero. Il ${cy} è in corso: la sua barra, più chiara, conta solo fino a oggi. La linea gialla unisce le barre per mostrare la tendenza.`;
- t2.textContent=`${m.L}: mese per mese, anno su anno`;t3.textContent=`${m.L}: stesso mese, negli anni`;
+ t2.textContent=`${m.L}: mese per mese, anno su anno`+(corto?` (solo ${pp})`:'');t3.textContent=`${m.L}: stesso mese, negli anni`;
  per.options[1].textContent=`Solo ${pp} (confronto alla pari)`;
  barre('c1',ys,y=>yt(y,corto?UP:12),!corto);
- draw('c2',{type:'line',data:{labels:MS,datasets:ys.map(y=>({label:y,data:MS.map((_,i)=>y==cy&&i>oggi.getMonth()?null:cell(y,i+1)),borderColor:col(y),backgroundColor:col(y),borderWidth:3,tension:.3,pointRadius:3}))},
+ const nm=corto?UP:12;  // con «solo gennaio–…» il grafico mostra soltanto quei mesi
+ draw('c2',{type:'line',data:{labels:MS.slice(0,nm),datasets:ys.map(y=>({label:y,data:MS.slice(0,nm).map((_,i)=>y==cy&&i>oggi.getMonth()?null:cell(y,i+1)),borderColor:col(y),backgroundColor:col(y),borderWidth:3,tension:.3,pointRadius:3}))},
   options:{interaction:{mode:'index',intersect:false},plugins:{tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${m.f(c.parsed.y)}`}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>m.f(v)}}}}});
  barre('c3',anni,y=>cell(y,+tm.value));
  confronta();
