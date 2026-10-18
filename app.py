@@ -1,4 +1,4 @@
-import io, os, re, secrets
+import io, json, os, re, secrets
 from datetime import date, datetime, time, timedelta, timezone
 from functools import wraps
 import click
@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from openpyxl import Workbook, load_workbook
+from openpyxl.comments import Comment
 from openpyxl.styles import Font
 
 app = Flask(__name__)
@@ -17,7 +18,13 @@ app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = "DATABASE_URL" in os.environ  # solo online (HTTPS)
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True, "pool_recycle": 280}  # database che va in pausa
-app.secret_key = os.environ.get("SECRET_KEY", "cambiami-in-produzione")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=14)  # la sessione scade dopo 14 giorni
+_sk = os.environ.get("SECRET_KEY")
+if not _sk:
+    if "DATABASE_URL" in os.environ:  # online: senza chiave segreta le sessioni sarebbero falsificabili
+        raise RuntimeError("Imposta la variabile d'ambiente SECRET_KEY (una stringa casuale lunga).")
+    _sk = "solo-sviluppo-locale"
+app.secret_key = _sk
 db = SQLAlchemy(app)
 
 ENTRATE = ["Stipendio", "Ripetizioni", "Concerti/Matrimoni", "Entrate extra"]
@@ -43,6 +50,7 @@ class Movimento(db.Model):
     importo = db.Column(db.Float, nullable=False)
     descrizione = db.Column(db.String(200), default="")
     fonte = db.Column(db.String(10), default="manuale")  # manuale | import | ricorrente
+    file_id = db.Column(db.Integer)  # file Excel (FileBilancio) da cui arriva, se importato
 
 
 class Budget(db.Model):
@@ -89,6 +97,15 @@ class Lezione(db.Model):
     studente = db.relationship("Studente", backref="lezioni")
 
 
+class FileBilancio(db.Model):
+    """Elenco dei file Excel del bilancio importati (solo nome e data: i movimenti stanno in Movimento)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    nome = db.Column(db.String(200), nullable=False)
+    caricato_il = db.Column(db.DateTime, nullable=False)  # UTC
+    contenuto = db.Column(db.LargeBinary)  # il file originale, cosi' si puo' riscaricare (vuoto per i file caricati prima)
+
+
 class FileCaricato(db.Model):
     """Ultimo file Excel caricato (uno per tipo): resta salvato nel database online."""
     id = db.Column(db.Integer, primary_key=True)
@@ -99,13 +116,52 @@ class FileCaricato(db.Model):
     contenuto = db.Column(db.LargeBinary, nullable=False)
 
 
+class Stipendio(db.Model):
+    """Una riga di Check_stipendi: i dati di un cedolino (mensile o tredicesima)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    anno = db.Column(db.Integer, nullable=False)
+    mese = db.Column(db.Integer, nullable=False)
+    tipo = db.Column(db.String(10), nullable=False, default="mensile")  # mensile | tredicesima
+    fonte = db.Column(db.String(10), default="sito")  # import | sito
+    note = db.Column(db.String(1000))
+    pdf = db.Column(db.String(200))
+
+
+STIP_CAMPI = [  # (colonna Excel, attributo, titolo)
+    ("B", "giorni", "Giorni lavorati"), ("C", "gg_mensa", "Giorni (trattenuta mensa)"), ("D", "scatti", "Scatti"),
+    ("E", "unitario", "Compenso unitario"), ("F", "minimo", "Minimo"), ("G", "sup_ass", "Sup. ass."),
+    ("H", "tot_retr", "Tot. retributivo"), ("I", "competenze", "Tot. competenze"), ("J", "trattenute", "Trattenute"),
+    ("L", "fe_prec", "Ferie: anno prec."), ("M", "fe_spett", "Ferie: spettanti"), ("N", "fe_god", "Ferie: godute"),
+    ("P", "par_prec", "PAR: anno prec."), ("Q", "par_spett", "PAR: spettanti"), ("R", "par_god", "PAR: godute"),
+    ("U", "edp", "EDP"), ("V", "anticipo", "Anticipo for the better"), ("W", "mensa_tratt", "Trattenuta mensa"),
+    ("X", "mensa_sup", "Supplemento mensa"), ("Z", "cometa", "Cometa"), ("AA", "tfr_fondo", "TFR fondo"), ("AB", "tfe", "TFE 12 AP")]
+for _c, _a, _t in STIP_CAMPI:
+    setattr(Stipendio, _a, db.Column(db.Float))
+
+
+class CedolinoPdf(db.Model):
+    """Il PDF di un cedolino, con i valori letti dal PDF (JSON)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    anno = db.Column(db.Integer, nullable=False)
+    mese = db.Column(db.Integer, nullable=False)
+    tipo = db.Column(db.String(10), nullable=False, default="mensile")
+    nome = db.Column(db.String(200), nullable=False)
+    caricato_il = db.Column(db.DateTime, nullable=False)  # UTC
+    contenuto = db.Column(db.LargeBinary, nullable=False)
+    dati = db.Column(db.Text)  # {"v": valori, "voci": [...], "c": controlli}
+
+
 def migra():
     """Aggiunge le colonne nuove alle tabelle gia' esistenti (database online)."""
     from sqlalchemy import inspect, text
     insp = inspect(db.engine)
-    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT")):
+    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER")):
         if col not in [c["name"] for c in insp.get_columns(tab)]:
             db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN {col} {tipo}"))
+    if "contenuto" not in [c["name"] for c in insp.get_columns("file_bilancio")]:
+        db.session.execute(text("ALTER TABLE file_bilancio ADD COLUMN contenuto " + ("BYTEA" if db.engine.dialect.name == "postgresql" else "BLOB")))
     db.session.execute(text("UPDATE lezione SET tariffa = (SELECT studente.tariffa FROM studente WHERE studente.id = lezione.studente_id) WHERE tariffa IS NULL"))
     db.session.execute(text("UPDATE studente SET credito = 0 WHERE credito IS NULL"))
     db.session.commit()
@@ -128,8 +184,10 @@ def login_required(f):
 
 @app.before_request
 def csrf():
-    if request.method == "POST" and request.form.get("_t") != session.get("_t"):
-        abort(400)
+    if request.method == "POST":
+        atteso = session.get("_t")
+        if not atteso or not secrets.compare_digest(request.form.get("_t", ""), atteso):
+            abort(400)
 
 
 @app.context_processor
@@ -172,6 +230,21 @@ def num(s):
     return float(str(s).replace(",", "."))
 
 
+def nota_cella(c):
+    """Testo della nota (commento) attaccata a una cella Excel, ripulito; stringa vuota se non c'e'."""
+    if not c.comment:
+        return ""
+    t = (c.comment.text or "").strip()
+    m = re.search(r"Comment:\s*\n(.*)", t, re.S)  # commenti "a catena" dell'Excel moderno
+    if m:
+        t = m.group(1).strip()
+    else:  # nota classica: la prima riga e' spesso solo il nome dell'autore ("Marco:")
+        righe = t.split("\n")
+        if len(righe) > 1 and righe[0].rstrip().endswith(":") and len(righe[0]) <= 40:
+            t = "\n".join(righe[1:]).strip()
+    return " ".join(t.split())[:200]  # il campo descrizione accetta al massimo 200 caratteri
+
+
 def applica_ricorrenti(uid):
     oggi = date.today()
     for r in Ricorrente.query.filter_by(user_id=uid):
@@ -190,19 +263,40 @@ def applica_ricorrenti(uid):
 
 
 # ---------- pagine ----------
+TENTATIVI = {}  # ip -> [istanti dei tentativi falliti]; in memoria, si azzera al riavvio
+MAX_TENTATIVI, FINESTRA = 5, 15 * 60  # 5 errori ogni 15 minuti
+
+
+def tentativi_recenti(ip):
+    ora = datetime.now().timestamp()
+    lista = [t for t in TENTATIVI.get(ip, []) if ora - t < FINESTRA]
+    if lista:
+        TENTATIVI[ip] = lista
+    else:
+        TENTATIVI.pop(ip, None)
+    return lista
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        u = User.query.filter_by(username=request.form["username"].strip()).first()
-        if u and check_password_hash(u.password, request.form["password"]):
+        ip = request.remote_addr or "?"
+        if len(tentativi_recenti(ip)) >= MAX_TENTATIVI:
+            flash("Troppi tentativi falliti. Riprova tra 15 minuti.")
+            return render_template("login.html"), 429
+        u = User.query.filter_by(username=request.form.get("username", "").strip()).first()
+        if u and check_password_hash(u.password, request.form.get("password", "")):
+            TENTATIVI.pop(ip, None)
             session.clear()
+            session.permanent = True
             session["uid"] = u.id
             return redirect(url_for("home"))
+        TENTATIVI.setdefault(ip, []).append(datetime.now().timestamp())
         flash("Username o password errati.")
     return render_template("login.html")
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return redirect(url_for("login"))
@@ -271,9 +365,10 @@ def elimina(id):
     r = db.get_or_404(Movimento, id)
     if r.user_id != session["uid"]:
         abort(404)
+    mese = f"{r.data:%Y-%m}"
     db.session.delete(r)
     db.session.commit()
-    return redirect(request.referrer or url_for("movimenti"))
+    return redirect(url_for("movimenti", mese=mese))
 
 
 @app.route("/impostazioni", methods=["GET", "POST"])
@@ -304,8 +399,11 @@ def impostazioni():
             db.session.rollback()
             flash("Dati non validi.")
         return redirect(url_for("impostazioni"))
+    file_bilanci, anni_senza_file = elenco_bilanci(uid)
     return render_template("impostazioni.html", budget=Budget.query.filter_by(user_id=uid).all(),
-                           ric=Ricorrente.query.filter_by(user_id=uid).all())
+                           ric=Ricorrente.query.filter_by(user_id=uid).all(),
+                           file_bilanci=file_bilanci, anni_senza_file=anni_senza_file,
+                           anni_export=sorted({int(y) for (y,) in db.session.query(db.extract("year", Movimento.data)).filter(Movimento.user_id == uid).distinct()}))
 
 
 @app.route("/password", methods=["POST"])
@@ -330,8 +428,9 @@ def importa():
     uid = session["uid"]
     n, anni, errori = 0, set(), []
     for file in request.files.getlist("file"):
+        raw = file.read()
         try:
-            wb = load_workbook(file.stream, data_only=True)
+            wb = load_workbook(io.BytesIO(raw), data_only=True)
         except Exception:
             errori.append(file.filename)
             continue
@@ -348,23 +447,156 @@ def importa():
                     if cat and isinstance(v, (int, float)) and v:
                         cat = str(cat).strip()
                         nuovi.append(Movimento(user_id=uid, data=d.date(), tipo="entrata" if cat in ENTRATE else "uscita",
-                                               categoria=cat, importo=abs(v), fonte="import"))
+                                               categoria=cat, importo=abs(v), fonte="import",
+                                               descrizione=nota_cella(ws.cell(r, c))))
         if not nuovi:
             errori.append(file.filename)
             continue
         ys = {m.data.year for m in nuovi}
+        da_sito = (wb.properties.title or "") == "spese-export"  # scaricato da qui: contiene gia' anche i movimenti inseriti dal sito
         for y in ys:  # sostituisce solo gli anni presenti nel file
-            Movimento.query.filter(Movimento.user_id == uid, Movimento.fonte == "import",
-                                   Movimento.data >= date(y, 1, 1), Movimento.data < date(y + 1, 1, 1)).delete()
+            q = Movimento.query.filter(Movimento.user_id == uid, Movimento.data >= date(y, 1, 1), Movimento.data < date(y + 1, 1, 1))
+            (q if da_sito else q.filter(Movimento.fonte == "import")).delete()
+        rec = FileBilancio(user_id=uid, nome=(file.filename or "Bilancio.xlsx")[:200],
+                           caricato_il=datetime.now(timezone.utc).replace(tzinfo=None), contenuto=raw)
+        db.session.add(rec)
+        db.session.flush()
+        for m in nuovi:
+            m.file_id = rec.id
         db.session.add_all(nuovi)
         n += len(nuovi)
         anni |= ys
+    db.session.flush()
+    vuoti = [i for (i,) in db.session.query(FileBilancio.id).outerjoin(Movimento, Movimento.file_id == FileBilancio.id)
+             .filter(FileBilancio.user_id == uid, Movimento.id.is_(None))]  # file i cui anni sono stati sostituiti da uno nuovo
+    if vuoti:
+        FileBilancio.query.filter(FileBilancio.id.in_(vuoti)).delete(synchronize_session=False)
     db.session.commit()
     if anni:
         flash(f"Importati {n} movimenti per gli anni: {', '.join(map(str, sorted(anni)))}.")
     if errori:
         flash("File non letti: " + ", ".join(errori))
     return redirect(url_for("impostazioni"))
+
+
+@app.route("/importa/scarica/<int:id>")
+@login_required
+def importa_scarica(id):
+    """Il file Excel esattamente come era stato caricato."""
+    f = mio(FileBilancio, id)
+    if not f.contenuto:
+        abort(404)
+    return send_file(io.BytesIO(f.contenuto), as_attachment=True, download_name=f.nome)
+
+
+@app.route("/esporta/<int:anno>")
+@login_required
+def esporta_anno(anno):
+    """Excel dell'anno con tutti i movimenti attuali (importati e inseriti dal sito), nello stesso formato dell'importazione:
+    un foglio per mese, i giorni in colonna, le categorie in riga, le note come commenti della cella. Si puo' ricaricare."""
+    if not 1900 <= anno <= 2200:
+        abort(404)
+    mov = (Movimento.query.filter(Movimento.user_id == session["uid"], Movimento.data >= date(anno, 1, 1), Movimento.data < date(anno + 1, 1, 1))
+           .order_by(Movimento.data, Movimento.id).all())
+    if not mov:
+        flash(f"Non ci sono movimenti nel {anno} da esportare.")
+        return redirect(url_for("impostazioni"))
+    mesi = "Gennaio Febbraio Marzo Aprile Maggio Giugno Luglio Agosto Settembre Ottobre Novembre Dicembre".split()
+    grassetto = Font(bold=True)
+    ordine = {c: i for i, c in enumerate(ENTRATE + USCITE)}
+    wb = Workbook()
+    ann = wb.active
+    ann.title = "ANNUALE"
+    cats = sorted({m.categoria for m in mov}, key=lambda c: (c not in ENTRATE, ordine.get(c, 999), c))
+    ann.append(["Categoria", "Totale"] + mesi)
+    for c in ann[1]:
+        c.font = grassetto
+    for cat in cats:
+        riga = [round(sum(m.importo for m in mov if m.categoria == cat and m.data.month == i), 2) or None for i in range(1, 13)]
+        ann.append([cat, round(sum(m.importo for m in mov if m.categoria == cat), 2)] + riga)
+    ann.column_dimensions["A"].width = 24
+    for i in range(1, 13):
+        ws = wb.create_sheet(mesi[i - 1])
+        dm = [m for m in mov if m.data.month == i]
+        ws["A1"] = f"{mesi[i - 1]} {anno}"
+        ws["A1"].font = grassetto
+        ws["A2"], ws["B2"] = "Categoria", "Totale"
+        ws["A2"].font = ws["B2"].font = grassetto
+        giorni = (date(anno + (i == 12), i % 12 + 1, 1) - date(anno, i, 1)).days
+        for g in range(1, giorni + 1):
+            c = ws.cell(2, 2 + g, datetime(anno, i, g))
+            c.number_format = "D"
+            c.font = grassetto
+        cm = sorted({m.categoria for m in dm}, key=lambda c: (c not in ENTRATE, ordine.get(c, 999), c))
+        for r, cat in enumerate(cm, 3):
+            ws.cell(r, 1, cat)
+            tot = 0
+            for g in range(1, giorni + 1):
+                qui = [m for m in dm if m.categoria == cat and m.data.day == g]
+                if not qui:
+                    continue
+                v = round(sum(m.importo for m in qui), 2)
+                tot += v
+                cella = ws.cell(r, 2 + g, v)
+                note = " · ".join(dict.fromkeys(m.descrizione.strip() for m in qui if m.descrizione and m.descrizione.strip()))
+                if note:
+                    cella.comment = Comment(note, "Le mie spese")
+            ws.cell(r, 2, round(tot, 2))
+        r = max(35, 4 + len(cm))  # i totali stanno sotto le righe delle categorie, cosi' non vengono letti come movimenti
+        ws.cell(r, 1, "Totale entrate").font = grassetto
+        ws.cell(r, 2, round(sum(m.importo for m in dm if m.tipo == "entrata"), 2))
+        ws.cell(r + 1, 1, "Totale uscite").font = grassetto
+        ws.cell(r + 1, 2, round(sum(m.importo for m in dm if m.tipo == "uscita"), 2))
+        ws.column_dimensions["A"].width = 24
+        ws.freeze_panes = "C3"
+    wb.properties.title = "spese-export"
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name=f"Bilancio_{anno}_aggiornato_{date.today()}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/importa/elimina/<int:id>", methods=["POST"])
+@login_required
+def importa_elimina(id):
+    f = mio(FileBilancio, id)
+    nome = f.nome
+    n = Movimento.query.filter_by(user_id=session["uid"], file_id=id, fonte="import").delete()
+    db.session.delete(f)
+    db.session.commit()
+    flash(f"File «{nome}» eliminato, con i suoi {n} movimenti. I movimenti inseriti a mano non sono stati toccati.")
+    return redirect(url_for("impostazioni"))
+
+
+@app.route("/importa/elimina-anno/<int:anno>", methods=["POST"])
+@login_required
+def importa_elimina_anno(anno):
+    """Per i movimenti importati prima che i file venissero registrati (nessun file associato)."""
+    if not 1900 <= anno <= 2200:
+        abort(404)
+    n = Movimento.query.filter(Movimento.user_id == session["uid"], Movimento.fonte == "import", Movimento.file_id.is_(None),
+                               Movimento.data >= date(anno, 1, 1), Movimento.data < date(anno + 1, 1, 1)).delete()
+    db.session.commit()
+    flash(f"Eliminati {n} movimenti importati del {anno}. I movimenti inseriti a mano non sono stati toccati.")
+    return redirect(url_for("impostazioni"))
+
+
+def elenco_bilanci(uid):
+    """File importati (con anni e numero di movimenti) + anni importati senza file associato."""
+    anno = db.extract("year", Movimento.data)
+    per_file = {}
+    q = (db.session.query(Movimento.file_id, anno, db.func.count())
+         .filter(Movimento.user_id == uid, Movimento.fonte == "import").group_by(Movimento.file_id, anno))
+    for fid, y, c in q:
+        per_file.setdefault(fid, {})[int(y)] = c
+    con_originale = {i for (i,) in db.session.query(FileBilancio.id).filter(FileBilancio.user_id == uid, FileBilancio.contenuto.isnot(None))}
+    file = [dict(f=f, anni=sorted(per_file.get(f.id, {})), n=sum(per_file.get(f.id, {}).values()),
+                 iso=f.caricato_il.isoformat() + "Z", originale=f.id in con_originale)
+            for f in FileBilancio.query.options(db.defer(FileBilancio.contenuto)).filter_by(user_id=uid)
+            .order_by(FileBilancio.caricato_il.desc(), FileBilancio.id.desc())]
+    vecchi = sorted(per_file.get(None, {}).items())
+    return file, vecchi
 
 
 # ---------- ripetizioni ----------
@@ -404,6 +636,35 @@ def leggi_credito(ws):
     if str(ws.cell(1, 12).value or "").strip().lower() == "credito eur" and isinstance(v, (int, float)) and v >= 0:
         return float(v)
     return None
+
+
+NOTA_PAG = re.compile(r"(\d+)\s*lezion[ei]\s*(?:gi[aà]\s*)?pagat", re.I)
+NOTA_EURO = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:€|eur)", re.I)
+
+
+def credito_da_note(ws, tariffa):
+    """Nel tuo Excel un pagamento anticipato e' scritto come nota sulla prima lezione che copre, ad es. «4 lezioni pagate bonifico 16/10 - 100€».
+    Se da quella riga in poi ci sono meno lezioni di quelle pagate, le altre sono gia' pagate e non ancora svolte: restano come credito."""
+    righe = []  # (riga, numero di lezioni pagate scritte nella nota, importo nella nota)
+    lez = []
+    for r in range(2, ws.max_row + 1):
+        d, ore = parse_data(ws.cell(r, 1).value), ws.cell(r, 4).value
+        if not d or not isinstance(ore, (int, float)) or ore <= 0:
+            continue
+        lez.append(r)
+        for c in range(5, 10):
+            v = ws.cell(r, c).value
+            m = NOTA_PAG.search(v) if isinstance(v, str) else None
+            if m:
+                e = NOTA_EURO.search(v)
+                righe.append((len(lez) - 1, int(m.group(1)), float(e.group(1).replace(",", ".")) if e else None))
+    if not righe:
+        return 0.0
+    i, n, euro = righe[-1]
+    resto = n - (len(lez) - i)
+    if resto <= 0 or n <= 0 or any(rosso(ws.cell(r, c)) for r in lez[i:] for c in range(1, 6)):
+        return 0.0  # tutte svolte, oppure ci sono lezioni segnate da pagare: non indovino nulla
+    return round((euro / n if euro else tariffa) * resto, 2)
 
 
 def leggi_foglio(ws):
@@ -460,11 +721,14 @@ def n_prepagate(s):
 def ripetizioni():
     uid = session["uid"]
     al = {s.id: dict(s=s, n=0, dovuto=0.0, incassato=0.0, prima=None, ultima=None) for s in Studente.query.filter_by(user_id=uid)}
-    inc_mesi = {}
+    inc_mesi, ult, oggi_d = {}, {}, date.today()
     q = db.session.query(Lezione.studente_id, Lezione.ore, Lezione.tariffa, Lezione.pagata, Lezione.data).filter(Lezione.user_id == uid)
     for sid, ore, tar, pag, d in q:
         a = al[sid]
         euro = ore * (tar or a["s"].tariffa or 0)
+        kk = (d <= oggi_d, d)  # l'ultima lezione gia' svolta; se non ce ne sono, la piu' recente
+        if sid not in ult or kk > ult[sid][0]:
+            ult[sid] = (kk, tar if tar is not None else a["s"].tariffa)
         if pag:
             a["incassato"] += euro
             k = d.strftime("%Y-%m")
@@ -483,7 +747,8 @@ def ripetizioni():
     anno = date.today() - timedelta(days=365)
     tutti = request.args.get("tutti") == "1"
     visibili = [a for a in elenco if tutti or a["n"] or (a["ultima"] and a["ultima"] >= anno)]
-    return render_template("ripetizioni.html", elenco=elenco, visibili=visibili, tutti=tutti, oggi=date.today().isoformat(),
+    tariffe = {a["s"].nome: (ult[a["s"].id][1] if a["s"].id in ult else a["s"].tariffa) or 0 for a in elenco}
+    return render_template("ripetizioni.html", tariffe=tariffe, elenco=elenco, visibili=visibili, tutti=tutti, oggi=date.today().isoformat(),
                            inc_mesi=inc_mesi, tot=sum(a["dovuto"] for a in elenco), tot_n=sum(a["n"] for a in elenco),
                            n_deb=sum(1 for a in elenco if a["n"]), p=ore_periodi(uid), ultimo_file=ultimo_file(uid))
 
@@ -494,11 +759,17 @@ def allievo(id):
     s = mio(Studente, id)
     lez = Lezione.query.filter_by(studente_id=id).order_by(Lezione.data.desc(), Lezione.ora_inizio.desc()).all()
     n = sum(1 for l in lez if not l.pagata)
-    return render_template("allievo.html", s=s, lez=lez, n=n, n_tot=len(lez), ore_tot=sum(l.ore for l in lez),
+    oggi = date.today()
+    credito = s.credito or 0
+    return render_template("allievo.html", s=s, lez=lez, n=n, n_tot=len(lez),
+                           ore_svolte=sum(l.ore for l in lez if l.data <= oggi), ore_prog=sum(l.ore for l in lez if l.data > oggi),
                            dovuto=sum(l.ore * (l.tariffa or s.tariffa or 0) for l in lez if not l.pagata),
-                           incassato=sum(l.ore * (l.tariffa or s.tariffa or 0) for l in lez if l.pagata),
+                           # totale incassato: lezioni pagate (anche future) + credito versato in anticipo
+                           incassato=sum(l.ore * (l.tariffa or s.tariffa or 0) for l in lez if l.pagata) + credito,
+                           debito_ore=sum(l.ore for l in lez if not l.pagata),
+                           credito_ore=round(credito / s.tariffa, 2) if (s.tariffa or 0) > 0 else 0,
                            serie=[[l.data.isoformat(), l.ore] for l in lez],
-                           credito=s.credito or 0, n_pre=n_prepagate(s))
+                           credito=credito, n_pre=n_prepagate(s))
 
 
 @app.route("/ripetizioni/nuova", methods=["POST"])
@@ -515,17 +786,25 @@ def rip_nuova():
         flash("Controlla allievo, data e orari.")
         return redirect(url_for("ripetizioni"))
     s = Studente.query.filter_by(user_id=uid, nome=nome).first()
+    try:  # l'importo scritto nel modulo vale sempre per questa lezione, anche per un allievo gia' presente
+        t_in = abs(num(f["tariffa"])) if (f.get("tariffa") or "").strip() else None
+    except ValueError:
+        t_in = None
     if not s:
-        try:
-            t = num(f.get("tariffa") or 20)
-        except ValueError:
-            t = 20
-        s = Studente(user_id=uid, nome=nome, tariffa=t)
+        s = Studente(user_id=uid, nome=nome, tariffa=t_in or 0)
         db.session.add(s)
         db.session.flush()
+        t_lez = s.tariffa
+    elif t_in is not None:
+        t_lez = t_in
+    else:  # campo vuoto: l'importo dell'ultima lezione svolta
+        base = Lezione.query.filter_by(studente_id=s.id).filter(Lezione.tariffa.isnot(None))
+        ordine = (Lezione.data.desc(), Lezione.ora_inizio.desc())
+        u = base.filter(Lezione.data <= date.today()).order_by(*ordine).first() or base.order_by(*ordine).first()
+        t_lez = u.tariffa if u else (s.tariffa or 0)
     l = Lezione(user_id=uid, studente_id=s.id, data=d, ora_inizio=f["inizio"], ora_fine=f["fine"], ore=ore,
-                materia=f.get("materia", "").strip(), modalita=f.get("modalita", ""), tariffa=s.tariffa)
-    costo = ore * (s.tariffa or 0)
+                materia=f.get("materia", "").strip(), modalita=f.get("modalita", ""), tariffa=t_lez)
+    costo = ore * (t_lez or 0)
     arretrati = Lezione.query.filter_by(studente_id=s.id, pagata=False).count()
     prepagata = arretrati == 0 and costo > 0 and (s.credito or 0) >= costo - 0.001
     if prepagata:  # l'allievo aveva gia' pagato in anticipo: la lezione nasce pagata e scala il credito
@@ -591,7 +870,7 @@ def rip_incassa(id):
             residuo -= costo
         l.pagata, l.data_pagamento = True, date.today()
         n += 1
-    msg = f"{n} lezioni segnate come pagate."
+    msg = "1 lezione segnata come pagata." if n == 1 else f"{n} lezioni segnate come pagate."
     if residuo is not None:
         s.credito = round(max(residuo, 0), 2)  # quello che avanza e' un anticipo per le prossime lezioni
         if s.credito:
@@ -626,6 +905,7 @@ def rip_importa():
         wb = load_workbook(io.BytesIO(dati), data_only=True)
         fogli = [(ws.title.strip(),) + leggi_foglio(ws) for ws in wb]  # (nome, tariffa, nota, lezioni)
         crediti = {ws.title.strip(): leggi_credito(ws) for ws in wb}
+        da_note = {nome: credito_da_note(ws, tar) for ws, (nome, tar, _n, _l) in zip(wb, fogli)}  # solo se il foglio non ha la colonna Credito
     except Exception:
         flash("Il file non e' un Excel (.xlsx) valido: non ho cambiato nulla.")
         return redirect(url_for("ripetizioni"))
@@ -634,29 +914,25 @@ def rip_importa():
         flash("Nel file non ho trovato lezioni: non ho cambiato nulla.")
         return redirect(url_for("ripetizioni"))
     try:
-        completo = (wb.properties.title or "") == "ripetizioni-export"  # file scaricato dal sito: contiene tutto
-        q = Lezione.query.filter_by(user_id=uid)
-        (q if completo else q.filter_by(fonte="import")).delete()  # il nuovo file sostituisce il precedente
+        # il nuovo file SOSTITUISCE tutto: lezioni (anche quelle inserite a mano), pagamenti, crediti, note e allievi
+        Lezione.query.filter_by(user_id=uid).delete()
+        esistenti = {s.nome: s for s in Studente.query.filter_by(user_id=uid)}
         n = nuovi = 0
+        nel_file = set()
         for nome, tariffa, nota, lez in fogli:
-            s = Studente.query.filter_by(user_id=uid, nome=nome).first()
+            s = esistenti.get(nome)
             if not s:
-                s = Studente(user_id=uid, nome=nome, tariffa=tariffa, note=nota)
+                s = Studente(user_id=uid, nome=nome)
                 db.session.add(s)
-                db.session.flush()
                 nuovi += 1
-            else:
-                s.tariffa = tariffa
-                s.note = s.note or nota
-            if completo and crediti.get(nome) is not None:  # file scaricato dal sito: ripristina anche il credito
-                s.credito = crediti[nome]
+            # dati dell'allievo presi solo dal file (se ne' tariffa ne' credito sono nel file, ripartono da zero)
+            s.tariffa, s.note = tariffa, nota
+            s.credito = crediti[nome] if crediti.get(nome) is not None else da_note.get(nome, 0)
+            db.session.flush()
+            nel_file.add(s.id)
             db.session.add_all(Lezione(user_id=uid, studente_id=s.id, fonte="import", **l) for l in lez)
             n += len(lez)
-        db.session.flush()
-        orfani = [i for (i,) in db.session.query(Studente.id).outerjoin(Lezione, Lezione.studente_id == Studente.id)
-                  .filter(Studente.user_id == uid, Lezione.id.is_(None), db.func.coalesce(Studente.credito, 0) <= 0)]  # allievi non piu' presenti nel file
-        if orfani:
-            Studente.query.filter(Studente.id.in_(orfani)).delete(synchronize_session=False)
+        rimossi = Studente.query.filter(Studente.user_id == uid, ~Studente.id.in_(nel_file)).delete(synchronize_session=False)  # allievi non piu' nel file
         rec = FileCaricato.query.filter_by(user_id=uid, tipo="ripetizioni").first() or FileCaricato(user_id=uid, tipo="ripetizioni")
         rec.nome, rec.contenuto = (f.filename or "Ripetizioni.xlsx")[:200], dati
         rec.caricato_il = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -666,7 +942,7 @@ def rip_importa():
         db.session.rollback()
         flash("Errore durante l'importazione: i dati precedenti non sono stati modificati.")
         return redirect(url_for("ripetizioni"))
-    flash(f"File salvato e dati aggiornati: {n} lezioni, {len(fogli)} allievi ({nuovi} nuovi, {len(orfani)} rimossi)." + (" Era un file scaricato dal sito: sostituiti anche i dati inseriti a mano." if completo else ""))
+    flash(f"File caricato: i dati precedenti sono stati sostituiti. Ora ci sono {n} lezioni e {len(fogli)} allievi ({nuovi} nuovi, {rimossi} rimossi).")
     return redirect(url_for("ripetizioni"))
 
 
@@ -772,6 +1048,25 @@ def rip_calendario():
             g["senza"].append(e)
         n += 1
         ore_tot += l.ore
+    for g in giorni:  # lezioni alla stessa ora (o che si sovrappongono): ognuna ha la sua colonna, affiancate
+        fine_col, gruppo, fine_gruppo = [], [], 0
+        for e in sorted(g["ev"], key=lambda x: (x["start"], x["end"])):
+            vis = max(e["end"], e["start"] + 30)  # le lezioni brevi sono disegnate alte almeno 30 minuti
+            if gruppo and e["start"] >= fine_gruppo:
+                for x in gruppo:
+                    x["ncols"] = len(fine_col)
+                fine_col, gruppo, fine_gruppo = [], [], 0
+            for i, fc in enumerate(fine_col):
+                if fc <= e["start"]:
+                    e["col"], fine_col[i] = i, vis
+                    break
+            else:
+                e["col"] = len(fine_col)
+                fine_col.append(vis)
+            gruppo.append(e)
+            fine_gruppo = max(fine_gruppo, vis)
+        for x in gruppo:
+            x["ncols"] = len(fine_col)
     inizi = [e["start"] // 60 for g in giorni for e in g["ev"]]
     fini = [-(-e["end"] // 60) for g in giorni for e in g["ev"]]
     h0, h1 = min([8] + inizi), min(max([21] + fini), 24)
@@ -793,6 +1088,25 @@ def ultimo_file(uid):
 def rip_file():
     r = FileCaricato.query.filter_by(user_id=session["uid"], tipo="ripetizioni").first_or_404()
     return send_file(io.BytesIO(r.contenuto), as_attachment=True, download_name=r.nome)
+
+
+@app.route("/ripetizioni/file/elimina", methods=["POST"])
+@login_required
+def rip_file_elimina():
+    """Toglie il file caricato e i dati che arrivano da lui (lezioni importate e allievi rimasti senza lezioni).
+    Le lezioni inserite a mano dal sito non vengono toccate."""
+    uid = session["uid"]
+    rec = FileCaricato.query.filter_by(user_id=uid, tipo="ripetizioni").first_or_404()
+    nome = rec.nome
+    ids = {i for (i,) in db.session.query(Lezione.studente_id).filter_by(user_id=uid, fonte="import").distinct()}
+    n = Lezione.query.filter_by(user_id=uid, fonte="import").delete()
+    vuoti = [i for i in ids if not Lezione.query.filter_by(studente_id=i).count()]
+    if vuoti:
+        Studente.query.filter(Studente.id.in_(vuoti)).delete(synchronize_session=False)
+    db.session.delete(rec)
+    db.session.commit()
+    flash(f"File «{nome}» eliminato, con le sue {n} lezioni e {len(vuoti)} allievi. Le lezioni inserite a mano non sono state toccate.")
+    return redirect(url_for("ripetizioni"))
 
 
 @app.route("/ripetizioni/esporta-fogli")
@@ -837,9 +1151,383 @@ def rip_esporta_fogli():
         ws.append(["Importi/ora", s.tariffa])
         for col, w in zip("ABCDEFJKL", (14, 11, 10, 11, 22, 14, 13, 40, 13)):
             ws.column_dimensions[col].width = w
+    if not wb.sheetnames:  # nessuna lezione: un Excel senza fogli non si puo' salvare
+        flash("Non ci sono ancora lezioni da esportare.")
+        return redirect(url_for("ripetizioni"))
     wb.properties.title = "ripetizioni-export"  # riconosce i file scaricati da qui
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     return send_file(buf, as_attachment=True, download_name=f"Ripetizioni_aggiornato_{date.today()}.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ---------- stipendi (check cedolini) ----------
+def _num(v):
+    if v is None or v == "":
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _nota_cella(c):
+    if not c.comment:
+        return ""
+    t = re.sub(r"^\s*Marco Cescon:?\s*", "", c.comment.text.strip())
+    return " · ".join(p.strip() for p in t.splitlines() if p.strip())
+
+
+def leggi_stipendi(wb_val, wb_form):
+    """Legge il foglio 'Stipendi' (riga 2 = titoli, dati dalla riga 3). Restituisce l'elenco di dizionari."""
+    ws = wb_val["Stipendi"] if "Stipendi" in wb_val.sheetnames else wb_val.worksheets[0]
+    wf = wb_form[ws.title]
+    out = []
+    for r in range(3, ws.max_row + 1):
+        a = ws.cell(r, 1).value
+        d = {"tipo": "mensile"}
+        if isinstance(a, (datetime, date)):
+            d["anno"], d["mese"] = a.year, a.month
+        elif isinstance(a, str) and a.strip():
+            m = re.match(r"\s*tredicesima\W*(\d{2,4})", a, re.I)
+            if not m:
+                continue
+            y = int(m.group(1))
+            d.update(tipo="tredicesima", anno=y + 2000 if y < 100 else y, mese=12)
+        else:
+            continue
+        for col, att, _t in STIP_CAMPI:
+            d[att] = _num(ws[f"{col}{r}"].value)
+        if d["competenze"] is None and d["trattenute"] is None:
+            continue
+        link = ws[f"T{r}"].value
+        d["pdf"] = str(link).strip() if link else None
+        note = [_nota_cella(wf[f"{c}{r}"]) for c in "IJNRA"]
+        d["note"] = " · ".join(n for n in note if n)[:1000] or None
+        out.append(d)
+    return out
+
+
+def stip_dict(s):
+    d = {"id": s.id, "anno": s.anno, "mese": s.mese, "tipo": s.tipo, "note": s.note or "", "pdf": s.pdf or ""}
+    for _c, a, _t in STIP_CAMPI:
+        d[a] = getattr(s, a)
+    d["netto"] = round((s.competenze or 0) - (s.trattenute or 0), 2)
+    d["fe_saldo"] = None if s.fe_prec is None and s.fe_spett is None else round((s.fe_prec or 0) + (s.fe_spett or 0) - (s.fe_god or 0), 2)
+    d["par_saldo"] = None if s.par_prec is None and s.par_spett is None else round((s.par_prec or 0) + (s.par_spett or 0) - (s.par_god or 0), 2)
+    d["mensa_gg"] = round(s.mensa_tratt / s.gg_mensa, 2) if s.mensa_tratt and s.gg_mensa else None
+    return d
+
+
+def controlli_stipendi(righe):
+    """Controlli di coerenza tra mesi consecutivi di ferie e PAR (A. prec. / Spett. / Godute):
+    - a gennaio il riporto dell'anno precedente deve essere il saldo di dicembre;
+    - le ore spettanti crescono ogni mese del solito accredito (quello piu' frequente);
+    - le ore godute non possono diminuire nell'anno.
+    Restituisce {id: [avvisi]}."""
+    from collections import Counter
+    avv = {}
+    mens = [r for r in righe if r["tipo"] == "mensile"]
+    gruppi = (("ferie", "fe_prec", "fe_spett", "fe_god", "fe_saldo"), ("PAR", "par_prec", "par_spett", "par_god", "par_saldo"))
+    acc = {}
+    for nome, _p, sp, _g, _s in gruppi:
+        c = Counter()
+        for prec, r in zip(mens, mens[1:]):
+            if r["anno"] == prec["anno"] and r["mese"] == prec["mese"] + 1 and r[sp] is not None and prec[sp] is not None:
+                c[round(r[sp] - prec[sp], 2)] += 1
+        acc[nome] = c.most_common(1)[0][0] if c else None
+    def add(r, t):
+        avv.setdefault(r["id"], []).append(t)
+    for prec, r in zip(mens, mens[1:]):
+        if (r["anno"], r["mese"]) != (prec["anno"] + (prec["mese"] == 12), prec["mese"] % 12 + 1):
+            continue  # mese mancante: nessun confronto
+        for nome, pr, sp, gd, sl in gruppi:
+            if r["mese"] == 1:
+                if prec[sl] is not None and r[pr] is not None and abs(prec[sl] - r[pr]) > 0.05:
+                    add(r, f"{nome[0].upper() + nome[1:]}: il riporto ({r[pr]:g} h) non coincide con il saldo di dicembre ({prec[sl]:g} h)")
+                continue
+            if acc[nome] is not None and prec[sp] is not None and r[sp] is not None and abs((r[sp] - prec[sp]) - acc[nome]) > 0.3:
+                add(r, f"{nome[0].upper() + nome[1:]}: maturate {r[sp] - prec[sp]:g} h invece delle solite {acc[nome]:g} h")
+            if prec[gd] is not None and r[gd] is not None and r[gd] < prec[gd] - 0.05:
+                add(r, f"{nome[0].upper() + nome[1:]}: le ore godute sono scese ({prec[gd]:g} → {r[gd]:g} h)")
+    costi = [r["mensa_gg"] for r in mens if r["mensa_gg"]]
+    if len(costi) >= 6:
+        med = sorted(costi)[len(costi) // 2]
+        for r in mens:
+            if r["mensa_gg"] and abs(r["mensa_gg"] - med) > med * 0.15:
+                add(r, f"Mensa: {r['mensa_gg']:.2f} € al giorno (di solito {med:.2f} €)")
+    return avv
+
+
+MESI_LUN = [m.capitalize() for m in MESI_IT]
+
+
+@app.route("/stipendi")
+@login_required
+def stipendi():
+    uid = session["uid"]
+    righe = [stip_dict(s) for s in Stipendio.query.filter_by(user_id=uid).order_by(Stipendio.anno, Stipendio.mese, Stipendio.tipo)]
+    avv = controlli_stipendi(righe)
+    for r in righe:
+        r["avvisi"] = avv.get(r["id"], [])
+    f = FileCaricato.query.filter_by(user_id=uid, tipo="stipendi").first()
+    ultimo = dict(nome=f.nome, iso=f.caricato_il.replace(tzinfo=timezone.utc).isoformat()) if f else None
+    pdfs = {}
+    for p in CedolinoPdf.query.filter_by(user_id=uid).with_entities(CedolinoPdf.id, CedolinoPdf.anno, CedolinoPdf.mese, CedolinoPdf.tipo, CedolinoPdf.nome):
+        pdfs[f"{p.anno}-{p.mese}-{p.tipo}"] = {"id": p.id, "nome": p.nome, "n": None}
+    for r in righe:
+        p = pdfs.get(f"{r['anno']}-{r['mese']}-{r['tipo']}")
+        if p:
+            rec = db.session.get(CedolinoPdf, p["id"])
+            p["n"] = sum(1 for x in confronta_pdf(rec, righe) if not x["ok"])
+            r["pdf_id"], r["pdf_n"] = p["id"], p["n"]
+    elenco = sorted(({"id": p["id"], "nome": p["nome"], "k": k, "n": p["n"]} for k, p in pdfs.items()), key=lambda x: [int(i) if i.isdigit() else i for i in x["k"].split("-")], reverse=True)
+    peso = db.session.query(db.func.coalesce(db.func.sum(db.func.length(CedolinoPdf.contenuto)), 0)).filter_by(user_id=uid).scalar() or 0
+    return render_template("stipendi.html", righe=righe, ultimo_file=ultimo, mesi=MESI_LUN, pdfs=elenco, peso_pdf=peso,
+                           campi=[(a, t) for _c, a, t in STIP_CAMPI])
+
+
+@app.route("/stipendi/importa", methods=["POST"])
+@login_required
+def stipendi_importa():
+    uid = session["uid"]
+    f = request.files.get("file")
+    dati = f.read() if f else b""
+    try:
+        righe = leggi_stipendi(load_workbook(io.BytesIO(dati), data_only=True), load_workbook(io.BytesIO(dati)))
+    except Exception:
+        flash("Il file non e' un Excel (.xlsx) valido: non ho cambiato nulla.")
+        return redirect(url_for("stipendi"))
+    if not righe:
+        flash("Non ho trovato righe di stipendi nel file (serve il foglio «Stipendi» con le date dei mesi nella colonna A): non ho cambiato nulla.")
+        return redirect(url_for("stipendi"))
+    Stipendio.query.filter_by(user_id=uid).delete()
+    for d in righe:
+        db.session.add(Stipendio(user_id=uid, fonte="import", **d))
+    FileCaricato.query.filter_by(user_id=uid, tipo="stipendi").delete()
+    db.session.add(FileCaricato(user_id=uid, tipo="stipendi", nome=(f.filename or "Stipendi.xlsx")[:200],
+                                caricato_il=datetime.now(timezone.utc).replace(tzinfo=None), contenuto=dati))
+    db.session.commit()
+    flash(f"Importati {len(righe)} cedolini.")
+    return redirect(url_for("stipendi"))
+
+
+@app.route("/stipendi/file")
+@login_required
+def stipendi_file():
+    r = FileCaricato.query.filter_by(user_id=session["uid"], tipo="stipendi").first_or_404()
+    return send_file(io.BytesIO(r.contenuto), as_attachment=True, download_name=r.nome)
+
+
+@app.route("/stipendi/file/elimina", methods=["POST"])
+@login_required
+def stipendi_file_elimina():
+    uid = session["uid"]
+    rec = FileCaricato.query.filter_by(user_id=uid, tipo="stipendi").first_or_404()
+    n = Stipendio.query.filter_by(user_id=uid, fonte="import").delete()
+    nome = rec.nome
+    db.session.delete(rec)
+    db.session.commit()
+    flash(f"File «{nome}» eliminato, con i suoi {n} cedolini. I mesi inseriti a mano dal sito non sono stati toccati.")
+    return redirect(url_for("stipendi"))
+
+
+@app.route("/stipendi/salva", methods=["POST"])
+@login_required
+def stipendi_salva():
+    uid = session["uid"]
+    try:
+        anno, mese = int(request.form["anno"]), int(request.form["mese"])
+        assert 2000 <= anno <= 2100 and 1 <= mese <= 12
+    except (KeyError, ValueError, AssertionError):
+        flash("Anno o mese non validi.")
+        return redirect(url_for("stipendi"))
+    tipo = "tredicesima" if request.form.get("tipo") == "tredicesima" else "mensile"
+    s = Stipendio.query.filter_by(user_id=uid, anno=anno, mese=mese, tipo=tipo).first()
+    nuovo = s is None
+    if nuovo:
+        s = Stipendio(user_id=uid, anno=anno, mese=mese, tipo=tipo, fonte="sito")
+        db.session.add(s)
+    for _c, a, _t in STIP_CAMPI:
+        v = request.form.get(a, "").strip().replace(",", ".")
+        setattr(s, a, _num(v))
+    s.note = request.form.get("note", "").strip()[:1000] or None
+    s.pdf = request.form.get("pdf", "").strip()[:200] or None
+    db.session.commit()
+    flash(f"Cedolino {'aggiunto' if nuovo else 'aggiornato'}: {MESI_LUN[mese - 1]} {anno}{' (tredicesima)' if tipo == 'tredicesima' else ''}.")
+    return redirect(url_for("stipendi"))
+
+
+@app.route("/stipendi/<int:id>/elimina", methods=["POST"])
+@login_required
+def stipendi_elimina(id):
+    s = Stipendio.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    db.session.delete(s)
+    db.session.commit()
+    flash("Cedolino eliminato.")
+    return redirect(url_for("stipendi"))
+
+
+@app.route("/stipendi/esporta")
+@login_required
+def stipendi_esporta():
+    """Excel nello stesso formato di Check_stipendi (si puo' ricaricare)."""
+    righe = Stipendio.query.filter_by(user_id=session["uid"]).order_by(Stipendio.anno, Stipendio.mese, Stipendio.tipo).all()
+    if not righe:
+        flash("Non ci sono ancora cedolini da esportare.")
+        return redirect(url_for("stipendi"))
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Stipendi"
+    ws["L1"], ws["P1"] = "FERIE", "PAR"
+    tit = {"K": "NETTO", "O": "Saldo", "S": "Saldo", "T": "LINK PDF", "Y": "Costo mensa giornaliero medio"}
+    tit.update({c: t for c, _a, t in STIP_CAMPI})
+    for c, t in tit.items():
+        ws[f"{c}2"] = t
+    for c in ws[2]:
+        c.font = Font(bold=True)
+    for i, s in enumerate(righe):
+        r = i + 3
+        if s.tipo == "tredicesima":
+            ws[f"A{r}"] = f"tredicesima-{str(s.anno)[2:]}"
+        else:
+            ws[f"A{r}"] = date(s.anno, s.mese, 1)
+            ws[f"A{r}"].number_format = "mmmm yyyy"
+        for c, a, _t in STIP_CAMPI:
+            ws[f"{c}{r}"] = getattr(s, a)
+        ws[f"K{r}"] = f"=I{r}-J{r}"
+        ws[f"O{r}"] = f"=L{r}+M{r}-N{r}"
+        ws[f"S{r}"] = f"=P{r}+Q{r}-R{r}"
+        ws[f"Y{r}"] = f'=IF(AND(C{r}>0,W{r}<>""),W{r}/C{r},"")'
+        ws[f"T{r}"] = s.pdf
+        if s.note:
+            ws[f"I{r}"].comment = Comment(s.note, "Le mie spese")
+    ws.column_dimensions["A"].width = 16
+    ws.freeze_panes = "B3"
+    wb.properties.title = "stipendi-export"
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name=f"Check_stipendi_aggiornato_{date.today()}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ---------- cedolini PDF ----------
+PDF_CAMPI = [(a, t) for _c, a, t in STIP_CAMPI if a not in ("mensa_sup",)]
+
+
+def confronta_pdf(rec, righe=None):
+    """Confronta i valori letti dal PDF con la riga di Check_stipendi (stesso mese). Restituisce un elenco di righe."""
+    v = json.loads(rec.dati)["v"]
+    if righe is None:
+        righe = [stip_dict(s) for s in Stipendio.query.filter_by(user_id=rec.user_id).order_by(Stipendio.anno, Stipendio.mese)]
+    riga = next((r for r in righe if (r["anno"], r["mese"], r["tipo"]) == (rec.anno, rec.mese, rec.tipo)), None)
+    out = []
+    if not riga:
+        return out
+    campi = [(a, t) for a, t in PDF_CAMPI]
+    campi.append(("netto", "Netto da pagare"))
+    for a, t in campi:
+        p, x = v.get(a), riga.get(a)
+        if a in ("fe_god", "par_god"):
+            p, x = p or 0, x or 0
+        if p is None and x is None:
+            continue
+        if p is None:
+            continue  # il PDF non riporta quel dato: non si puo' confrontare
+        tol = 0.001 if a == "unitario" else 0.011
+        out.append({"campo": a, "titolo": t, "pdf": p, "riga": x, "ok": x is not None and abs(p - x) <= tol})
+    # ore di ferie scalate nel mese (differenza dei "Godute") contro le ore scritte nella descrizione del cedolino
+    prec = next((r for r in righe if r["tipo"] == "mensile" and (r["anno"], r["mese"]) == ((rec.anno, rec.mese - 1) if rec.mese > 1 else (rec.anno - 1, 12))), None)
+    god = v.get("fe_god") or 0
+    if v.get("_fe_desc") is not None and rec.tipo == "mensile":
+        base = (prec.get("fe_god") or 0) if prec and rec.mese > 1 else 0
+        if rec.mese == 1 or prec:
+            out.append({"campo": "_fe_mese", "titolo": "Ferie del mese: ore scalate nei saldi / ore in descrizione", "pdf": v["_fe_desc"], "riga": round(god - base, 2), "ok": abs(v["_fe_desc"] - (god - base)) <= 0.011})
+    return out
+
+
+def _applica_valori(uid, v):
+    s = Stipendio.query.filter_by(user_id=uid, anno=v["anno"], mese=v["mese"], tipo=v["tipo"]).first()
+    nuovo = s is None
+    if nuovo:
+        s = Stipendio(user_id=uid, anno=v["anno"], mese=v["mese"], tipo=v["tipo"], fonte="pdf")
+        db.session.add(s)
+    for a, _t in PDF_CAMPI:
+        if v.get(a) is not None or a in ("fe_god", "par_god"):
+            setattr(s, a, v.get(a))
+    return nuovo
+
+
+@app.route("/stipendi/pdf", methods=["POST"])
+@login_required
+def stipendi_pdf():
+    from cedolino import leggi_cedolino
+    uid = session["uid"]
+    msg = []
+    for f in request.files.getlist("file"):
+        dati = f.read()
+        if not dati:
+            continue
+        try:
+            v, voci, ctrl = leggi_cedolino(dati)
+        except ValueError as e:
+            msg.append(f"{f.filename}: {e}.")
+            continue
+        rec = CedolinoPdf.query.filter_by(user_id=uid, anno=v["anno"], mese=v["mese"], tipo=v["tipo"]).first()
+        if not rec:
+            rec = CedolinoPdf(user_id=uid, anno=v["anno"], mese=v["mese"], tipo=v["tipo"])
+            db.session.add(rec)
+        rec.nome = (f.filename or "cedolino.pdf")[:200]
+        rec.caricato_il = datetime.now(timezone.utc).replace(tzinfo=None)
+        rec.contenuto = dati
+        rec.dati = json.dumps({"v": v, "voci": voci, "c": ctrl})
+        db.session.flush()
+        creato = False
+        if not Stipendio.query.filter_by(user_id=uid, anno=v["anno"], mese=v["mese"], tipo=v["tipo"]).first():
+            creato = _applica_valori(uid, v)
+        db.session.flush()
+        n = sum(1 for x in confronta_pdf(rec) if not x["ok"]) + sum(1 for x in ctrl if not x["ok"])
+        msg.append(f"{MESI_LUN[v['mese'] - 1]} {v['anno']}: {'riga creata dal PDF, ' if creato else ''}" + ("tutto coincide." if not n else f"{n} da controllare."))
+    db.session.commit()
+    flash(" ".join(msg) or "Nessun file ricevuto.")
+    return redirect(url_for("stipendi"))
+
+
+@app.route("/stipendi/pdf/<int:id>")
+@login_required
+def stipendi_pdf_dettaglio(id):
+    rec = CedolinoPdf.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    d = json.loads(rec.dati)
+    righe = [stip_dict(s) for s in Stipendio.query.filter_by(user_id=rec.user_id)]
+    return render_template("cedolino.html", rec=rec, conf=confronta_pdf(rec, righe), voci=d["voci"], ctrl=d["c"],
+                           ha_riga=any((r["anno"], r["mese"], r["tipo"]) == (rec.anno, rec.mese, rec.tipo) for r in righe),
+                           mese=MESI_LUN[rec.mese - 1], iso=rec.caricato_il.replace(tzinfo=timezone.utc).isoformat())
+
+
+@app.route("/stipendi/pdf/<int:id>/file")
+@login_required
+def stipendi_pdf_file(id):
+    rec = CedolinoPdf.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    return send_file(io.BytesIO(rec.contenuto), as_attachment=True, download_name=rec.nome, mimetype="application/pdf")
+
+
+@app.route("/stipendi/pdf/<int:id>/elimina", methods=["POST"])
+@login_required
+def stipendi_pdf_elimina(id):
+    rec = CedolinoPdf.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    db.session.delete(rec)
+    db.session.commit()
+    flash("PDF eliminato (la riga del cedolino resta).")
+    return redirect(url_for("stipendi"))
+
+
+@app.route("/stipendi/pdf/<int:id>/applica", methods=["POST"])
+@login_required
+def stipendi_pdf_applica(id):
+    rec = CedolinoPdf.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    _applica_valori(session["uid"], json.loads(rec.dati)["v"])
+    db.session.commit()
+    flash("Riga aggiornata con i valori del PDF.")
+    return redirect(url_for("stipendi_pdf_dettaglio", id=id))

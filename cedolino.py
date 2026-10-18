@@ -1,0 +1,163 @@
+"""Lettura del cedolino PDF (Electrolux/Zucchetti) con pdfplumber: restituisce i valori e i controlli interni."""
+import io, re
+
+MESI = "gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre".split()
+NUM = re.compile(r"^-?\d[\d.]*,\d+$")
+
+
+def _n(t):
+    try:
+        return float(t.replace(".", "").replace(",", "."))
+    except (ValueError, AttributeError):
+        return None
+
+
+def _righe(words, tol=3):
+    righe = []
+    for w in sorted(words, key=lambda w: (w["top"], w["x0"])):
+        if righe and abs(righe[-1][0] - w["top"]) <= tol:
+            righe[-1][1].append(w)
+        else:
+            righe.append([w["top"], [w]])
+    return [(t, sorted(ws, key=lambda w: w["x0"])) for t, ws in righe]
+
+
+def leggi_cedolino(dati):
+    """Restituisce (valori, voci, controlli) oppure solleva ValueError se non sembra un cedolino."""
+    import pdfplumber
+    try:
+        pdf = pdfplumber.open(io.BytesIO(dati))
+        pg = pdf.pages[0]
+        testo = pg.extract_text(x_tolerance=2, y_tolerance=3) or ""
+        words = pg.extract_words(x_tolerance=2)
+    except Exception as e:
+        raise ValueError("PDF non leggibile") from e
+    m = re.search(r"Periodo:\s*([A-Za-zÀ-ú]+)\s+(\d{4})", testo)
+    if not m:
+        raise ValueError("Non trovo il periodo: non sembra un cedolino")
+    nome, anno = m.group(1).lower(), int(m.group(2))
+    tipo = "mensile"
+    if nome.startswith(("tredic", "13")) or "tredicesima" in nome:
+        mese, tipo = 12, "tredicesima"
+    elif nome in MESI:
+        mese = MESI.index(nome) + 1
+    else:
+        raise ValueError(f"Periodo non riconosciuto: {m.group(1)} {anno}")
+    v = {"anno": anno, "mese": mese, "tipo": tipo}
+    righe = _righe(words)
+    # testata: minimo, scatti, sup. ass. (numeri sotto le intestazioni)
+    for t, ws in righe:
+        if any(w["text"] == "MINIMO" for w in ws) and any(w["text"] == "SCATTI" for w in ws):
+            intest = {w["text"]: (w["x0"] + w["x1"]) / 2 for w in ws if w["text"] in ("MINIMO", "SCATTI", "SUP.ASS.")}
+            for w in words:
+                if t + 4 < w["top"] < t + 22 and NUM.match(w["text"]):
+                    c = (w["x0"] + w["x1"]) / 2
+                    k = min(intest, key=lambda k: abs(intest[k] - c))
+                    if abs(intest[k] - c) < 30:
+                        v[{"MINIMO": "minimo", "SCATTI": "scatti", "SUP.ASS.": "sup_ass"}[k]] = _n(w["text"])
+            break
+    for w in words:  # totale retributivo: numero in alto a destra
+        if 255 < w["top"] < 300 and w["x0"] > 400 and NUM.match(w["text"]):
+            v["tot_retr"] = _n(w["text"])
+    # intestazioni delle colonne della tabella voci
+    inte = {}
+    for w in words:
+        if w["text"] in ("Giorni", "unitario", "Trattenute", "Competenze") and 295 < w["top"] < 310 and w["x0"] < 400:
+            inte[w["text"]] = w["x1"]
+    if len(inte) < 4:
+        raise ValueError("Tabella delle voci non trovata")
+    lim = [(inte["Giorni"] + inte["unitario"]) / 2, (inte["unitario"] + inte["Trattenute"]) / 2, (inte["Trattenute"] + inte["Competenze"]) / 2]
+    col = lambda x1: "ore" if x1 < lim[0] else "unit" if x1 < lim[1] else "tratt" if x1 < lim[2] else "comp"
+    y_tot = min([w["top"] for w in words if w["text"] == "Totale" and w["top"] > 500] or [640])
+    voci = []
+    for t, ws in righe:
+        if not (315 < t < y_tot - 8):
+            continue
+        ws = [w for w in ws if w["x0"] < 405]
+        cod = next((w for w in ws if re.fullmatch(r"\d{4}", w["text"]) and w["x0"] < 80), None)
+        if not cod:
+            continue
+        r = {"cod": cod.get("text"), "desc": " ".join(w["text"] for w in ws if w["x0"] > cod["x0"] and not NUM.match(w["text"]) and w["x0"] < 200).strip()}
+        for w in ws:
+            if NUM.match(w["text"]) and w["x0"] > cod["x0"]:
+                r[col(w["x1"])] = _n(w["text"])
+        voci.append(r)
+    # totali
+    for t, ws in righe:
+        if abs(t - y_tot) < 12 or (y_tot - 20 < t < y_tot):
+            pass
+    tot = [w for w in words if NUM.match(w["text"]) and y_tot - 22 < w["top"] < y_tot + 3 and w["x0"] < 405 and w["x1"] > lim[1]]
+    for w in tot:
+        c = col(w["x1"])
+        if c in ("tratt", "comp"):
+            v["trattenute" if c == "tratt" else "competenze"] = _n(w["text"])
+    mn = re.search(r"([\d.]+,\d\d)\s+Netto da pagare", testo)
+    v["netto"] = _n(mn.group(1)) if mn else None
+    # da voci
+    def voce(cod, campo):
+        return sum(r.get(campo) or 0 for r in voci if r["cod"] == cod) if any(r["cod"] == cod for r in voci) else None
+    v["edp"], v["anticipo"] = voce("2978", "comp"), voce("3693", "comp")
+    v["gg_mensa"], v["mensa_tratt"] = voce("4990", "ore"), voce("4990", "tratt")
+    v["unitario"] = next((r.get("unit") for r in voci if r["cod"] == "2000"), None)
+    v["_sw_ore"], v["_fe_desc"] = voce("1273", "ore"), voce("4802", "ore")
+    v["_par_desc"] = next((voce(r["cod"], "ore") for r in voci if "PAR" in r["desc"].split() and "GODUTE" in r["desc"]), None)
+    # blocchi di testo
+    def cerca(p):
+        mm = re.search(p, testo)
+        return _n(mm.group(1)) if mm else None
+    v["giorni"] = cerca(r"G\.LAV\.TI\s+([\d.]+,\d+)")
+    v["cometa"] = cerca(r"COMETA \(METAL\s+([\d.]+,\d+)")
+    v["tfr_fondo"] = cerca(r"TFR\s+F\.DI\s+([\d.]+,\d+)")
+    v["tfe"] = cerca(r"TFR 12 AP\s+([\d.]+,\d+)")
+    # tabella ferie / PAR
+    hdr = {}
+    for w in words:
+        if w["top"] > 600 and w["text"] in ("prec.", "Spett.", "Godute", "Saldo") and w["x0"] > 290:
+            hdr[w["text"]] = w["x1"]
+    if len(hdr) == 4:
+        for nome_r, pre in (("FERIE", "fe"), ("PAR", "par")):
+            rw = next((w for w in words if w["text"] == nome_r and w["x0"] > 290 and w["top"] > 600), None)
+            if not rw:
+                continue
+            for k in ("prec", "spett", "god"):
+                v[f"{pre}_{k}"] = None
+            for w in words:
+                if abs(w["top"] - rw["top"]) < 3 and w["x0"] > rw["x1"] and NUM.match(w["text"]):
+                    k = min(hdr, key=lambda k: abs(hdr[k] - w["x1"]))
+                    att = {"prec.": "prec", "Spett.": "spett", "Godute": "god", "Saldo": "saldo"}[k]
+                    v[f"{pre}_{att}"] = _n(w["text"])
+            v[f"_{pre}_saldo"] = v.pop(f"{pre}_saldo", None)
+    # presenze del mese (calendario a destra): giorni per evento
+    ev = {}
+    for t, ws in righe:
+        r = [w for w in ws if w["x0"] > 350]
+        if r and re.fullmatch(r"[LMGVSD]\d\d\*?", r[0]["text"]):
+            for w in r[1:]:
+                if re.fullmatch(r"[A-Z]{2}", w["text"]):
+                    ev[w["text"]] = ev.get(w["text"], 0) + 1
+    leg = {}
+    for cod, val in re.findall(r"\b([A-Z]{2})=[A-Z ]+?\s+([\d.]+,\d+)", testo):
+        leg[cod] = _n(val)
+    # controlli interni al PDF
+    c = []
+    def ctrl(nome, a, b, tol=0.02, um="€"):
+        if a is None or b is None:
+            return
+        c.append({"nome": nome, "a": a, "b": b, "ok": abs(a - b) <= tol, "um": um})
+    ctrl("Somma delle voci a competenza = totale competenze", round(sum(r.get("comp") or 0 for r in voci), 2), v.get("competenze"))
+    ctrl("Somma delle voci a trattenuta = totale trattenute", round(sum(r.get("tratt") or 0 for r in voci), 2), v.get("trattenute"))
+    if None not in (v.get("competenze"), v.get("trattenute"), v.get("netto")):
+        ctrl("Competenze − trattenute = netto da pagare", round(v["competenze"] - v["trattenute"], 2), v["netto"])
+    if "FR" in leg or "FR" in ev:
+        ctrl("Ferie: giorni nel calendario × 8 = ore in legenda", ev.get("FR", 0) * 8.0, leg.get("FR", 0.0), um="h")
+        if v.get("_fe_desc") is not None:
+            ctrl("Ferie: ore in descrizione = ore in legenda", v["_fe_desc"], leg.get("FR", 0.0), um="h")
+    if "WS" in leg or "WS" in ev:
+        ctrl("Smart working: giorni nel calendario × 8 = ore in legenda", ev.get("WS", 0) * 8.0, leg.get("WS", 0.0), um="h")
+        if v.get("_sw_ore") is not None:
+            ctrl("Smart working: ore in descrizione = ore in legenda", v["_sw_ore"], leg.get("WS", 0.0), um="h")
+    for pre, nome_r in (("fe", "Ferie"), ("par", "PAR")):
+        if all(v.get(f"{pre}_{k}") is not None for k in ("prec", "spett")) and v.get(f"_{pre}_saldo") is not None:
+            ctrl(f"{nome_r}: riporto + spettanti − godute = saldo", round(v[f"{pre}_prec"] + v[f"{pre}_spett"] - (v.get(f"{pre}_god") or 0), 2), v[f"_{pre}_saldo"], um="h")
+    v["_ev"], v["_leg"] = ev, leg
+    return v, voci, c
