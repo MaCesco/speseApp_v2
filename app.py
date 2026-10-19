@@ -350,6 +350,32 @@ def nuovo():
     return render_template("nuovo.html", oggi=date.today().isoformat())
 
 
+@app.route("/movimenti/<int:id>/modifica", methods=["GET", "POST"])
+@login_required
+def modifica_movimento(id):
+    m = db.get_or_404(Movimento, id)
+    if m.user_id != session["uid"]:
+        abort(404)
+    if request.method == "POST":
+        f = request.form
+        try:
+            imp = abs(num(f["importo"]))
+            d = datetime.strptime(f["data"], "%Y-%m-%d").date()
+            cat = f["categoria"].strip()
+            if not cat:
+                raise ValueError
+        except (ValueError, KeyError):
+            flash("Controlla importo, data e categoria.")
+            return redirect(url_for("modifica_movimento", id=id))
+        m.data, m.importo, m.categoria = d, imp, cat
+        m.tipo = "entrata" if f.get("tipo") == "entrata" else "uscita"
+        m.descrizione = f.get("descrizione", "").strip()
+        db.session.commit()
+        flash("Movimento aggiornato.")
+        return redirect(url_for("movimenti", mese=f"{d:%Y-%m}"))
+    return render_template("nuovo.html", oggi=m.data.isoformat(), m=m)
+
+
 @app.route("/movimenti")
 @login_required
 def movimenti():
@@ -1380,6 +1406,7 @@ def stipendi_elimina(id):
 def stipendi_esporta():
     """Excel nello stesso formato di Check_stipendi (si puo' ricaricare)."""
     righe = Stipendio.query.filter_by(user_id=session["uid"]).order_by(Stipendio.anno, Stipendio.mese, Stipendio.tipo).all()
+    nomi_pdf = {(p.anno, p.mese, p.tipo): p.nome for p in CedolinoPdf.query.filter_by(user_id=session["uid"]).with_entities(CedolinoPdf.anno, CedolinoPdf.mese, CedolinoPdf.tipo, CedolinoPdf.nome)}
     if not righe:
         flash("Non ci sono ancora cedolini da esportare.")
         return redirect(url_for("stipendi"))
@@ -1406,7 +1433,7 @@ def stipendi_esporta():
         ws[f"O{r}"] = f"=L{r}+M{r}-N{r}"
         ws[f"S{r}"] = f"=P{r}+Q{r}-R{r}"
         ws[f"Y{r}"] = f'=IF(AND(C{r}>0,W{r}<>""),W{r}/C{r},"")'
-        ws[f"T{r}"] = s.pdf
+        ws[f"T{r}"] = s.pdf or nomi_pdf.get((s.anno, s.mese, s.tipo))
         if s.note:
             ws[f"I{r}"].comment = Comment(s.note, "Le mie spese")
     ws.column_dimensions["A"].width = 16
