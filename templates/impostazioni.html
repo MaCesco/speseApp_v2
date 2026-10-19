@@ -30,7 +30,7 @@
 <input name="conferma" type="password" placeholder="Ripeti la nuova password" autocomplete="new-password" required>
 <button>Cambia password</button></form></div>
 
-<div class="card w"><h2>Importa da Excel</h2>
+<div class="card w" id="excel"><h2>Importa da Excel</h2>
 <p class="mu">Puoi selezionare più file insieme (uno per anno). Gli anni importati restano memorizzati. Caricando di nuovo un file, ad esempio Bilancio2026, viene sostituito solo quell'anno; gli altri anni e i movimenti inseriti a mano non cambiano.</p>
 <form class="f" method="post" action="/importa" enctype="multipart/form-data"><input type="hidden" name="_t" value="{{ csrf }}">
 <input type="file" name="file" accept=".xlsx" multiple required><button>Importa file</button></form>

@@ -30,7 +30,7 @@ function suggerisci(){const v=n.value.trim(),c=Object.prototype.hasOwnProperty.c
 n.addEventListener('input',suggerisci);n.addEventListener('change',suggerisci)})</script>
 <datalist id="al">{% for a in elenco %}<option value="{{ a.s.nome }}">{% endfor %}</datalist>
 <div class="row ph"><h1>{{ ic('rip') }}Ripetizioni</h1></div>
-<div class="sbtns"><a href="/ripetizioni/calendario">Calendario settimanale</a><a href="/ripetizioni/confronti">Confronti tra anni e mesi →</a></div>
+<div class="sbtns"><a href="/ripetizioni/calendario">Calendario settimanale</a><a href="/ripetizioni/confronti">Confronti tra anni e mesi →</a><a href="#excel">File Excel</a></div>
 <div class="pg">
 <div class="lft">
 <div class="s2">
@@ -65,7 +65,7 @@ n.addEventListener('input',suggerisci);n.addEventListener('change',suggerisci)})
 <select name="modalita"><option>Presenza</option><option>Online</option></select>
 <input name="tariffa" id="tar" type="number" step="0.5" min="0" placeholder="Importo €/h" aria-label="Importo €/h">
 <button>Aggiungi lezione</button></form></div>
-<div class="card"><h2>Importa ed esporta</h2>
+<div class="card" id="excel"><h2>Importa ed esporta</h2>
 <p style="margin:0 0 6px"><a href="/ripetizioni/esporta-fogli" style="font-weight:700;color:var(--in)">Scarica Excel aggiornato</a> <span class="mu">(un foglio per allievo, come il tuo file: si può ricaricare qui)</span></p>
 {% if ultimo_file %}<p style="margin:0 0 6px">Ultimo file caricato: <b>{{ ultimo_file.nome }}</b><br><span class="mu" data-utc="{{ ultimo_file.iso }}"></span> · <a href="/ripetizioni/file" style="font-weight:700;color:var(--in)">Scarica originale</a></p>
 <form method="post" action="/ripetizioni/file/elimina" style="margin:0 0 10px" data-msg="Eliminare il file «{{ ultimo_file.nome }}» e tutte le lezioni e gli allievi che arrivano da lui? Le lezioni inserite a mano dal sito non vengono toccate." onsubmit="return confirm(this.dataset.msg)"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Elimina file caricato</button></form>{% else %}<p class="mu" style="margin:0 0 6px">Nessun file caricato finora.</p>{% endif %}

@@ -1,18 +1,18 @@
 {% extends "base.html" %}{% block c %}
-<a href="/dashboard" class="back">← Dashboard</a>
+{% if m %}<a href="/movimenti?mese={{ m.data.strftime('%Y-%m') }}" class="back">← Movimenti</a>{% else %}<a href="/dashboard" class="back">← Dashboard</a>{% endif %}
 <form class="card f" method="post" style="margin:0 auto">
-<h1>Nuovo movimento</h1>
+<h1>{{ 'Modifica movimento' if m else 'Nuovo movimento' }}</h1>
 <input type="hidden" name="_t" value="{{ csrf }}">
 <div class="seg">
-<label><input type="radio" name="tipo" value="uscita" checked><span>Uscita</span></label>
-<label><input type="radio" name="tipo" value="entrata"><span>Entrata</span></label>
+<label><input type="radio" name="tipo" value="uscita" {{ 'checked' if not m or m.tipo == 'uscita' }}><span>Uscita</span></label>
+<label><input type="radio" name="tipo" value="entrata" {{ 'checked' if m and m.tipo == 'entrata' }}><span>Entrata</span></label>
 </div>
-<input name="importo" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Importo in €" required autofocus style="font-size:28px;font-weight:700">
-<input name="categoria" list="cat" placeholder="Categoria" required>
+<input name="importo" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Importo in €" required autofocus value="{{ m.importo if m }}" style="font-size:28px;font-weight:700">
+<input name="categoria" list="cat" placeholder="Categoria" value="{{ m.categoria if m }}" required>
 <datalist id="cat"></datalist>
-<input name="descrizione" placeholder="Descrizione (facoltativa)">
+<input name="descrizione" placeholder="Descrizione (facoltativa)" value="{{ m.descrizione if m and m.descrizione }}">
 <input name="data" type="date" value="{{ oggi }}" required>
-<button>Salva movimento</button>
+<button>{{ 'Salva modifiche' if m else 'Salva movimento' }}</button>{% if m %}<a href="/movimenti?mese={{ m.data.strftime('%Y-%m') }}" class="mu" style="text-align:center">Annulla</a>{% endif %}
 </form>
 <script>
 const C={entrata:{{ ENTRATE|tojson }},uscita:{{ USCITE|tojson }}};

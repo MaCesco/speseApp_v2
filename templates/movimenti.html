@@ -7,7 +7,7 @@
 <td class="mu">{{ r.data.strftime('%d/%m') }}</td>
 <td>{{ r.categoria }}<div class="mu">{{ r.descrizione }}{% if r.fonte == 'ricorrente' %} (ricorrente){% endif %}</div></td>
 <td class="{{ 'g' if r.tipo == 'entrata' else 'r' }}">{{ '+' if r.tipo == 'entrata' else '−' }}{{ '%.2f'|format(r.importo) }} €</td>
-<td><form method="post" action="/elimina/{{ r.id }}" onsubmit="return confirm('Eliminare questo movimento?')">
+<td style="white-space:nowrap"><a href="/movimenti/{{ r.id }}/modifica" class="x" style="display:inline-grid;place-items:center;text-decoration:none" aria-label="Modifica">✎</a> <form method="post" style="display:inline" action="/elimina/{{ r.id }}" onsubmit="return confirm('Eliminare questo movimento?')">
 <input type="hidden" name="_t" value="{{ csrf }}"><button class="x" aria-label="Elimina">✕</button></form></td>
 </tr>{% else %}<tr><td class="mu">Nessun movimento in questo mese.</td></tr>{% endfor %}
 </table></div>{% endblock %}
