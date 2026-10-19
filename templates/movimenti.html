@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block c %}
-<a href="/" class="back">← Dashboard</a>
-<div class="row" style="margin-bottom:16px"><h1>Movimenti</h1>
+<a href="/dashboard" class="back">← Dashboard</a>
+<div class="row ph"><h1>Movimenti</h1>
 <form method="get"><input type="month" name="mese" value="{{ mese }}" onchange="this.form.submit()"></form></div>
 <div class="card"><table>
 {% for r in righe %}<tr>

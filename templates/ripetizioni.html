@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block c %}
+{% extends "base.html" %}{% block c %}{% from "_ic.html" import ic %}
 <style>
 main{max-width:none}
 .pg,.lft,.rgt,.duo{display:grid;gap:16px}
@@ -29,7 +29,8 @@ main{max-width:none}
 function suggerisci(){const v=n.value.trim(),c=Object.prototype.hasOwnProperty.call(T,v)?v:'';if(c===k)return;k=c;t.value=c?T[c]:(v?0:'')}
 n.addEventListener('input',suggerisci);n.addEventListener('change',suggerisci)})</script>
 <datalist id="al">{% for a in elenco %}<option value="{{ a.s.nome }}">{% endfor %}</datalist>
-<div class="row" style="margin-bottom:16px"><h1>Ripetizioni</h1><a href="/ripetizioni/calendario" style="flex:0 0 auto;min-width:0;background:var(--in);color:#fff;text-decoration:none;border-radius:12px;padding:10px 18px;font-weight:700">Calendario settimanale</a><a href="/ripetizioni/confronti" style="flex:0 0 auto;min-width:0;background:var(--in);color:#fff;text-decoration:none;border-radius:12px;padding:10px 18px;font-weight:700">Confronti tra anni e mesi →</a></div>
+<div class="row ph"><h1>{{ ic('rip') }}Ripetizioni</h1></div>
+<div class="sbtns"><a href="/ripetizioni/calendario">Calendario settimanale</a><a href="/ripetizioni/confronti">Confronti tra anni e mesi →</a></div>
 <div class="pg">
 <div class="lft">
 <div class="s2">

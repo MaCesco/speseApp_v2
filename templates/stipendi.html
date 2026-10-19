@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block c %}
+{% extends "base.html" %}{% block c %}{% from "_ic.html" import ic %}
 <style>
 main{max-width:none}
 .cg{display:grid;gap:16px}.cg>*{min-width:0}
@@ -21,8 +21,9 @@ main{max-width:none}
 @media(min-width:1100px){.cg{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cg .w2{grid-column:1/-1}}
 @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
 </style>
+<div class="row ph"><h1>{{ ic('stip') }}Stipendi</h1>{% if righe %}<input type="month" id="mese" aria-label="Mese">{% endif %}</div>
+<div class="sbtns"><a href="#cedolini">Cedolini</a><a href="#pdf">Cedolini PDF</a><a href="#excel">File Excel</a></div>
 {% if righe %}
-<div class="row"><h1>Stipendi</h1><input type="month" id="mese" aria-label="Mese"></div>
 <section class="hero">
 <div><span id="h0">Netto del mese</span><b id="k3">–</b><small class="cf" id="n_m"></small><small class="cf" id="n_a"></small><small class="cf" id="n_t"></small></div>
 <div><span>Competenze (lordo)</span><strong id="k1">–</strong><small class="cf" id="c_m"></small><small class="cf" id="c_a"></small><small class="cf" id="c_o"></small></div>
@@ -39,16 +40,17 @@ main{max-width:none}
 <div class="card"><h2>Mensa: spesa del mese e costo per giorno</h2><div id="boxC" class="anni"></div><div class="ch" data-ctl="boxC" style="margin-top:12px"><canvas id="c5"></canvas></div></div>
 </div>
 {% endif %}
-<div class="card" style="margin-top:16px">
+<div class="card" id="cedolini" style="margin-top:16px">
 <div class="row"><h2 style="margin:0">Cedolini</h2>{% if righe %}<label class="lb" style="max-width:160px"><select id="fa" aria-label="Anno"></select></label>{% endif %}</div>
 <div class="sc" style="margin-top:10px"><table class="tb" id="tab"></table></div>
 {% if not righe %}<p class="mu">Nessun cedolino: carica il file Check_stipendi.xlsx qui sotto o aggiungine uno a mano.</p>{% endif %}
 </div>
-<div class="card" style="margin-top:16px"><h2>Cedolini PDF</h2>
+<div class="card" id="pdf" style="margin-top:16px"><h2>Cedolini PDF</h2>
 <p class="mu" style="margin:0 0 10px;font-size:14px">Carica il PDF del cedolino (anche più mesi insieme): il sito lo legge, lo confronta con la riga del mese e controlla che le somme tornino. Se il mese non c'è ancora, crea la riga dal PDF.</p>
 <form class="f" method="post" action="/stipendi/pdf" enctype="multipart/form-data"><input type="hidden" name="_t" value="{{ csrf }}">
 <label class="lb">Cedolini PDF<input type="file" name="file" accept="application/pdf,.pdf" multiple required></label><button style="margin-top:10px">Carica e confronta</button></form>
 {% if pdfs %}<div class="sc" style="margin-top:14px"><table class="tb">{% for p in pdfs %}<tr><td style="text-align:left"><a href="/stipendi/pdf/{{ p.id }}" style="font-weight:700;color:var(--in)">{{ mesi[p.k.split('-')[1]|int - 1] }} {{ p.k.split('-')[0] }}{% if p.k.endswith('tredicesima') %} · 13ª{% endif %}</a><br><span class="mu" style="font-size:13px">{{ p.nome }}</span></td><td>{% if p.n is none %}<span class="mu">senza riga</span>{% elif p.n %}<span class="av">⚠ {{ p.n }}</span>{% else %}<span class="g">✓</span>{% endif %}</td><td><a href="/stipendi/pdf/{{ p.id }}/file" class="bt">Scarica</a><form method="post" action="/stipendi/pdf/{{ p.id }}/elimina" style="display:inline" onsubmit="return confirm('Eliminare questo PDF?')"><input type="hidden" name="_t" value="{{ csrf }}"><button class="bt" style="color:var(--rt)">Elimina</button></form></td></tr>{% endfor %}</table></div>
+<form method="post" action="/stipendi/pdf/rileggi" style="margin:10px 0 0"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x" title="Rilegge i PDF già salvati con il lettore più recente">Rileggi i PDF salvati</button></form>
 <p class="mu" style="margin:10px 0 0;font-size:13px">Spazio occupato dai PDF: {{ '%.1f'|format(peso_pdf / 1048576) }} MB ({{ pdfs|length }} file)</p>{% endif %}</div>
 <div class="card" style="margin-top:16px"><details id="dform"><summary style="font-weight:700;cursor:pointer" id="ftit">Aggiungi o modifica un cedolino</summary>
 <form method="post" action="/stipendi/salva" style="margin-top:12px"><input type="hidden" name="_t" value="{{ csrf }}">
@@ -63,7 +65,7 @@ main{max-width:none}
 </div>
 <p class="mu" style="font-size:13px">Netto, saldi ferie/PAR e costo mensa al giorno si calcolano da soli. Se esiste già quel mese, viene aggiornato.</p>
 <button>Salva cedolino</button></form></details></div>
-<div class="card" style="margin-top:16px"><h2>File Excel</h2>
+<div class="card" id="excel" style="margin-top:16px"><h2>File Excel</h2>
 {% if ultimo_file %}<p style="margin:0 0 6px">Ultimo file caricato: <b>{{ ultimo_file.nome }}</b><br><span class="mu" data-utc="{{ ultimo_file.iso }}"></span> · <a href="/stipendi/file" style="font-weight:700;color:var(--in)">Scarica originale</a></p>
 <form method="post" action="/stipendi/file/elimina" style="margin:0 0 10px" data-msg="Eliminare il file «{{ ultimo_file.nome }}» e tutti i cedolini che arrivano da lui? I mesi inseriti a mano dal sito non vengono toccati." onsubmit="return confirm(this.dataset.msg)"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Elimina file caricato</button></form>{% else %}<p class="mu" style="margin:0 0 6px">Nessun file caricato finora.</p>{% endif %}
 {% if righe %}<p style="margin:0 0 10px"><a href="/stipendi/esporta" style="font-weight:700;color:var(--in)">Scarica Excel aggiornato</a> <span class="mu">(con le modifiche fatte dal sito, ricaricabile)</span></p>{% endif %}

@@ -1,8 +1,8 @@
-{% extends "base.html" %}{% block c %}
+{% extends "base.html" %}{% block c %}{% from "_ic.html" import ic %}
 <style>.par{display:grid;gap:16px;grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:640px){.par{grid-template-columns:minmax(0,1fr)}}#vt{display:block;overflow:hidden}#vt .tl{display:block;margin-bottom:8px}#vt .tw{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 0;}#vt .ta{position:relative;display:flex;align-items:baseline;gap:8px;white-space:nowrap}#vt .ta i{width:10px;height:10px;border-radius:50%;align-self:center;flex:0 0 auto}#vt .ta b{color:var(--tx)}#vt .ta em{font-style:normal;opacity:.6}#vt .ta strong{color:var(--tx);font-size:1.08em}.hero small.cf{opacity:1;color:rgba(255,255,255,.72);margin-top:2px}.cf i{font-style:normal;font-weight:700}.cf .b{color:#5eead4}.cf .m{color:#ff8fb1}.anni label{flex:1 1 72px}.anni span{padding:8px 0}.mp{display:flex;gap:8px;max-width:340px}.mp select{flex:0 0 100px;width:100px;min-width:0}.mp input{flex:1;min-width:0}main{max-width:none}.cols,.col{display:grid;gap:16px}.col{min-width:0;align-content:start}.col>.hero{margin:0}@media(min-width:1300px){.cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}.grp{border-left:4px solid var(--in)}.sub{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;margin:18px 0 6px;padding-top:16px;border-top:1px solid var(--line)}</style>
 <div class="cols"><div class="col">
-<div class="row"><h1>Dashboard</h1><input type="month" id="mese" aria-label="Mese"></div>
-<div class="sbtns"><a href="/movimenti">Movimenti</a><a href="/impostazioni">Impostazioni</a></div>
+<div class="row ph"><h1>{{ ic('dashboard') }}Dashboard</h1><input type="month" id="mese" aria-label="Mese"></div>
+<div class="sbtns"><a href="/nuovo">+ Aggiungi</a><a href="/movimenti">Movimenti</a><a href="/impostazioni">Impostazioni</a></div>
 <section class="hero">
 <div><span>Saldo del mese</span><b id="k3">–</b></div>
 <div><span>Entrate</span><strong id="k1">–</strong><small class="cf" id="en_m"></small><small class="cf" id="en_a"></small></div>

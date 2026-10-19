@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block c %}
-<a href="/" class="back">← Dashboard</a>
+<a href="/dashboard" class="back">← Dashboard</a>
 <datalist id="cat">{% for c in USCITE + ENTRATE %}<option value="{{ c }}">{% endfor %}</datalist>
 <div class="grid">
 <div class="card w solo-mob"><h2>Account</h2>

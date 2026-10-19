@@ -1,19 +1,19 @@
-<!doctype html>
+{% from "_ic.html" import ic %}{% set _pth = request.path %}{% set sez = 'rip' if _pth.startswith(('/ripetizioni', '/lezione', '/modifica-lezione')) else 'stip' if _pth.startswith('/stipendi') else 'spese' if _pth.startswith(('/dashboard', '/movimenti', '/impostazioni', '/nuovo', '/importa', '/esporta')) else 'home' %}<!doctype html>
 <html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Le mie spese</title>
 <script>try{document.documentElement.dataset.theme=localStorage.getItem('tema')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light')}catch(e){}</script>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head><body>
-{% if session.uid %}{% set pagina_corrente = request.path %}<nav aria-label="Principale">
-<span class="logo">Le mie spese</span>
-<a href="/"{% if pagina_corrente == '/' or pagina_corrente.startswith(('/movimenti', '/impostazioni', '/nuovo')) %} aria-current="page"{% endif %}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Dashboard</span></a>
-<a href="/ripetizioni"{% if pagina_corrente.startswith(('/ripetizioni', '/lezione', '/modifica-lezione')) %} aria-current="page"{% endif %}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5-10-5zM6 11.5V16c0 1.5 3 3 6 3s6-1.500 6-3v-4.500M22 9v6"/></svg><span>Ripetizioni</span></a>
-<a href="/stipendi"{% if pagina_corrente.startswith(('/stipendi')) %} aria-current="page"{% endif %}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.500"/><path d="M6 10v.01M18 14v.01"/></svg><span>Stipendi</span></a>
+</head><body data-sez="{{ sez }}">
+{% if session.uid %}<nav aria-label="Principale">
+<a class="logo" href="/">Le mie spese</a>
+<a href="/"{% if _pth == '/' %} aria-current="page"{% endif %}>{{ ic('home') }}<span>Home</span></a>
+<a href="/dashboard" class="n-sp"{% if sez == 'spese' %} aria-current="page"{% endif %}>{{ ic('dashboard') }}<span>Dashboard</span></a>
+<a href="/ripetizioni" class="n-rp"{% if sez == 'rip' %} aria-current="page"{% endif %}>{{ ic('rip') }}<span>Ripetizioni</span></a>
+<a href="/stipendi" class="n-st"{% if sez == 'stip' %} aria-current="page"{% endif %}>{{ ic('stip') }}<span>Stipendi</span></a>
 <form method="post" action="/logout" class="solo-desk" style="margin:0"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Esci</button></form>
 <button type="button" class="x tema solo-desk"></button>
-<a class="fab" href="/nuovo"{% if pagina_corrente == '/nuovo' %} aria-current="page"{% endif %}><span class="lg">+ Aggiungi</span><span class="sm">+ Nuovo</span></a>
 </nav>{% endif %}
 <main>
 {% for m in get_flashed_messages() %}<div class="flash" role="status">{{ m }}</div>{% endfor %}
