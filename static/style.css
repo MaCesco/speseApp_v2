@@ -152,12 +152,12 @@ main{max-width:none;padding:24px 18px calc(110px + env(safe-area-inset-bottom))}
 .hero{margin:0 0 16px}
 .sbtns{margin:0 0 16px}
 /* ===== colori delle sezioni ===== */
-:root{--c-sp:#4f46e5;--c-rp:#0f766e;--c-st:#b45309}
-body[data-sez=rip]{--in:#0f766e;--hero:#0f3f3a;--sel:#0f3f3a;--bg:#e4f3ef;--line:#c8e2dc;--flash:#cdeee6}
-body[data-sez=stip]{--in:#b45309;--hero:#4a2b0c;--sel:#4a2b0c;--bg:#f8eddb;--line:#ebd7b6;--flash:#fbe5bf}
-[data-theme=dark]{--c-sp:#6366f1;--c-rp:#0d9488;--c-st:#c2670a}
-[data-theme=dark] body[data-sez=rip]{--in:#0d9488;--hero:#0f3a36;--sel:#0f766e;--bg:#081a18;--card:#0f2926;--line:#1d4440;--inp:#081a18;--flash:#0f3a36}
-[data-theme=dark] body[data-sez=stip]{--in:#c2670a;--hero:#4a2b0c;--sel:#92400e;--bg:#1a1209;--card:#271b0d;--line:#4a3418;--inp:#1a1209;--flash:#44290c}
+:root{--c-sp:#4f46e5;--c-rp:#0e7490;--c-st:#e2553f}
+body[data-sez=rip]{--in:#0e7490;--hero:#0c3f52;--sel:#0c3f52}
+body[data-sez=stip]{--in:#e2553f;--hero:#6e2418;--sel:#6e2418}
+[data-theme=dark]{--c-sp:#6366f1;--c-rp:#22b8d6;--c-st:#f2715a}
+[data-theme=dark] body[data-sez=rip]{--in:#22b8d6;--hero:#0f3f52;--sel:#0e7490}
+[data-theme=dark] body[data-sez=stip]{--in:#f2715a;--hero:#5a2118;--sel:#c2432e}
 body[data-sez=home]{--bg:#e9edf5}
 [data-theme=dark] body[data-sez=home]{--bg:#0e1424}
 nav{border-bottom:3px solid var(--in)}
@@ -175,8 +175,8 @@ body[data-sez=home] main{min-height:calc(100vh - 70px);display:flex;flex-directi
 .big b{font:800 clamp(28px,3.4vw,46px)/1.1 'Bricolage Grotesque',sans-serif;letter-spacing:-.02em}
 .big span{font-size:clamp(15px,1.4vw,19px);opacity:.85;max-width:20ch}
 .b-sp{background:linear-gradient(145deg,#4f46e5,#312e81)}
-.b-rp{background:linear-gradient(145deg,#0f766e,#0b4a45)}
-.b-st{background:linear-gradient(145deg,#c2670a,#7c3a06)}
+.b-rp{background:linear-gradient(145deg,#0891b2,#0b4a5e)}
+.b-st{background:linear-gradient(145deg,#ee6a52,#a1331f)}
 @media(max-width:900px){.hub{grid-template-columns:1fr;gap:14px}.big{min-height:0;padding:26px 20px}body[data-sez=home] main{min-height:0;justify-content:flex-start}}
 @media(max-width:720px){nav{border-bottom:0;border-top:3px solid var(--in)}}
 svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
