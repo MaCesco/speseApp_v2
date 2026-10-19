@@ -305,6 +305,12 @@ def logout():
 @app.route("/")
 @login_required
 def home():
+    return render_template("home.html")
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
     applica_ricorrenti(session["uid"])
     return render_template("dashboard.html")
 
@@ -1438,13 +1444,20 @@ def confronta_pdf(rec, righe=None):
             continue  # il PDF non riporta quel dato: non si puo' confrontare
         tol = 0.001 if a == "unitario" else 0.011
         out.append({"campo": a, "titolo": t, "pdf": p, "riga": x, "ok": x is not None and abs(p - x) <= tol})
-    # ore di ferie scalate nel mese (differenza dei "Godute") contro le ore scritte nella descrizione del cedolino
+    # ore scalate nel mese, calcolate dai saldi: saldo del mese prima + ore maturate nel mese - saldo di questo mese.
+    # (non basta guardare la colonna "Godute": a volte le ore vengono tolte dal riporto dell'anno precedente)
     prec = next((r for r in righe if r["tipo"] == "mensile" and (r["anno"], r["mese"]) == ((rec.anno, rec.mese - 1) if rec.mese > 1 else (rec.anno - 1, 12))), None)
-    god = v.get("fe_god") or 0
-    if v.get("_fe_desc") is not None and rec.tipo == "mensile":
-        base = (prec.get("fe_god") or 0) if prec and rec.mese > 1 else 0
-        if rec.mese == 1 or prec:
-            out.append({"campo": "_fe_mese", "titolo": "Ferie del mese: ore scalate nei saldi / ore in descrizione", "pdf": v["_fe_desc"], "riga": round(god - base, 2), "ok": abs(v["_fe_desc"] - (god - base)) <= 0.011})
+    if rec.tipo == "mensile" and prec:
+        for pre, nome, chiave in (("fe", "Ferie", "_fe_desc"), ("par", "PAR", "_par_desc")):
+            ps, sp, sl_prec = v.get(f"{pre}_prec"), v.get(f"{pre}_spett"), prec.get(f"{pre}_saldo")
+            if None in (ps, sp, sl_prec):
+                continue
+            sl = ps + sp - (v.get(f"{pre}_god") or 0)
+            maturate = sp - ((prec.get(f"{pre}_spett") or 0) if rec.mese > 1 else 0)
+            scalate = round(sl_prec + maturate - sl, 2)
+            desc = v.get(chiave) or 0.0
+            out.append({"campo": f"_{pre}_mese", "titolo": f"{nome} del mese: ore in descrizione / ore scalate dal saldo", "pdf": desc, "riga": scalate, "ok": abs(desc - scalate) <= 0.011,
+                        "nota": f"Saldo {MESI_LUN[prec['mese'] - 1].lower()} {prec.get(f'{pre}_saldo'):g} h + maturate nel mese {maturate:g} h − saldo di questo mese {sl:g} h = {scalate:g} h scalate"})
     return out
 
 
@@ -1492,6 +1505,25 @@ def stipendi_pdf():
         msg.append(f"{MESI_LUN[v['mese'] - 1]} {v['anno']}: {'riga creata dal PDF, ' if creato else ''}" + ("tutto coincide." if not n else f"{n} da controllare."))
     db.session.commit()
     flash(" ".join(msg) or "Nessun file ricevuto.")
+    return redirect(url_for("stipendi"))
+
+
+@app.route("/stipendi/pdf/rileggi", methods=["POST"])
+@login_required
+def stipendi_pdf_rileggi():
+    """Rilegge tutti i PDF salvati con il lettore attuale (utile dopo un miglioramento del lettore)."""
+    from cedolino import leggi_cedolino
+    n = err = 0
+    for rec in CedolinoPdf.query.filter_by(user_id=session["uid"]):
+        try:
+            v, voci, ctrl = leggi_cedolino(rec.contenuto)
+        except ValueError:
+            err += 1
+            continue
+        rec.dati = json.dumps({"v": v, "voci": voci, "c": ctrl})
+        n += 1
+    db.session.commit()
+    flash(f"Riletti {n} PDF" + (f"; {err} non leggibili." if err else "."))
     return redirect(url_for("stipendi"))
 
 
