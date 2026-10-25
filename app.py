@@ -153,6 +153,25 @@ class CedolinoPdf(db.Model):
     dati = db.Column(db.Text)  # {"v": valori, "voci": [...], "c": controlli}
 
 
+ORE_CAMPI = ["lavoro", "sw", "ferie", "permessi", "fest_non", "fest_god", "trasferta", "pranzo_importo", "caffe", "spese"]
+
+
+class OreGiorno(db.Model):
+    """Un giorno di lavoro: ore (sede, smart working, ferie, ...) e piccole spese (pranzo, caffe')."""
+    __table_args__ = (db.UniqueConstraint("user_id", "data", name="uq_ore_user_data"),)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    data = db.Column(db.Date, nullable=False)
+    pranzo = db.Column(db.String(10))  # None | mensa | fuori
+    pranzo_nota = db.Column(db.String(200))
+    nota = db.Column(db.String(300))
+
+
+for _a in ORE_CAMPI:
+    setattr(OreGiorno, _a, db.Column(db.Float))
+
+
+
 def migra():
     """Aggiunge le colonne nuove alle tabelle gia' esistenti (database online)."""
     from sqlalchemy import inspect, text
@@ -1590,3 +1609,224 @@ def stipendi_pdf_applica(id):
     db.session.commit()
     flash("Riga aggiornata con i valori del PDF.")
     return redirect(url_for("stipendi_pdf_dettaglio", id=id))
+
+
+
+# ---------- Stipendi: ore giorno per giorno ----------
+ORE_STORICO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ore_storico_2026.json")
+GIORNI_IT = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
+
+
+def ore_dict(o):
+    d = {"data": o.data.isoformat(), "pranzo": o.pranzo or "", "pranzo_nota": o.pranzo_nota or "", "nota": o.nota or ""}
+    for a in ORE_CAMPI:
+        d[a] = getattr(o, a)
+    return d
+
+
+def mese_param(txt):
+    m = re.fullmatch(r"(\d{4})-(\d{1,2})", txt or "")
+    if m and 2000 <= int(m.group(1)) <= 2100 and 1 <= int(m.group(2)) <= 12:
+        return int(m.group(1)), int(m.group(2))
+    oggi = date.today()
+    return oggi.year, oggi.month
+
+
+def giorni_feriali(anno, mese):
+    import calendar
+    n = calendar.monthrange(anno, mese)[1]
+    return sum(1 for g in range(1, n + 1) if date(anno, mese, g).weekday() < 5)
+
+
+def riepilogo_ore(uid, anno, mese):
+    """Totali del mese e confronto con il cedolino (PDF se c'e', altrimenti la riga di Check_stipendi)."""
+    import calendar
+    n = calendar.monthrange(anno, mese)[1]
+    righe = OreGiorno.query.filter(OreGiorno.user_id == uid, OreGiorno.data >= date(anno, mese, 1), OreGiorno.data <= date(anno, mese, n)).all()
+    t = {a: round(sum(getattr(r, a) or 0 for r in righe), 2) for a in ORE_CAMPI}
+    t["mensa"] = sum(1 for r in righe if r.pranzo == "mensa")
+    t["fuori"] = sum(1 for r in righe if r.pranzo == "fuori")
+    t["fuori_eur"] = round(sum((r.pranzo_importo or 0) for r in righe if r.pranzo == "fuori"), 2)
+    t["giorni_reg"] = len(righe)
+    t["feriali"] = giorni_feriali(anno, mese)
+    t["giorni"] = round(t["feriali"] - t["ferie"] / 8 - t["fest_non"] / 8, 2)
+    t["sup"] = round(sum((r.pranzo_importo or 0) for r in righe if r.pranzo == "mensa"), 2)
+    conf, fonte = [], None
+    srow = Stipendio.query.filter_by(user_id=uid, anno=anno, mese=mese, tipo="mensile").first()
+    rec = CedolinoPdf.query.filter_by(user_id=uid, anno=anno, mese=mese, tipo="mensile").first()
+    if rec and rec.dati:
+        v = json.loads(rec.dati)["v"]
+        ev, leg = v.get("_ev") or {}, v.get("_leg") or {}
+        def da(*cands):
+            for c in cands:
+                if c is not None:
+                    return c
+            return None
+        pdf = {
+            "lavoro": da(leg.get("OR"), ev.get("OR")),
+            "sw": da(v.get("_sw_ore"), leg.get("WS"), ev.get("WS")),
+            "ferie": da(v.get("_fe_desc"), leg.get("FR"), ev.get("FR")),
+            "permessi": da(v.get("_par_desc"), leg.get("PA"), ev.get("PA")),
+            "fest_non": da(leg.get("FS"), ev.get("FS")),
+            "trasferta": da(leg.get("SE"), ev.get("SE")),
+            "giorni": v.get("giorni"), "mensa": v.get("gg_mensa")}
+        fonte = f"cedolino PDF di {MESI_LUN[mese - 1].lower()} {anno}"
+        ore_cat = True
+    else:
+        s = Stipendio.query.filter_by(user_id=uid, anno=anno, mese=mese, tipo="mensile").first()
+        pdf = {"giorni": s.giorni if s else None, "mensa": s.gg_mensa if s else None}
+        fonte = "riga di Check_stipendi (manca il PDF del cedolino)" if s and (s.giorni is not None or s.gg_mensa is not None) else None
+        ore_cat = False
+    for k, nome, um in (("lavoro", "Ore di lavoro in sede", "h"), ("sw", "Smart working", "h"), ("ferie", "Ferie", "h"), ("permessi", "Permessi", "h"),
+                        ("fest_non", "Festività non godute", "h"), ("trasferta", "Trasferta", "h"), ("giorni", "Giorni lavorati", "gg"), ("mensa", "Giorni di mensa", "gg")):
+        p = pdf.get(k)
+        sito = t["giorni"] if k == "giorni" else t["mensa"] if k == "mensa" else t[k]
+        if k in ("lavoro", "sw", "ferie", "permessi", "fest_non", "trasferta") and not ore_cat:
+            continue
+        if p is None and k in ("giorni", "mensa"):
+            continue
+        p = p or 0
+        if t["giorni_reg"] == 0:
+            continue
+        conf.append({"k": k, "nome": nome, "um": um, "sito": sito, "pdf": p, "ok": abs(sito - p) < 0.011})
+    if srow is not None and srow.mensa_sup is not None and t["giorni_reg"]:
+        conf.append({"k": "sup", "nome": "Supplemento mensa", "um": "€", "sito": t["sup"], "pdf": srow.mensa_sup, "ok": abs(t["sup"] - srow.mensa_sup) < 0.011})
+    return {"tot": t, "conf": conf, "fonte": fonte, "pdf": bool(rec)}
+
+
+@app.route("/stipendi/ore")
+@login_required
+def ore_pagina():
+    uid = session["uid"]
+    anno, mese = mese_param(request.args.get("mese"))
+    n = OreGiorno.query.filter_by(user_id=uid).count()
+    return render_template("ore.html", anno=anno, mese=mese, vuoto=(n == 0), storico=os.path.exists(ORE_STORICO), mesi=MESI_LUN)
+
+
+@app.route("/stipendi/ore/dati")
+@login_required
+def ore_dati():
+    import calendar
+    uid = session["uid"]
+    anno, mese = mese_param(request.args.get("mese"))
+    n = calendar.monthrange(anno, mese)[1]
+    righe = {r.data.day: ore_dict(r) for r in OreGiorno.query.filter(OreGiorno.user_id == uid, OreGiorno.data >= date(anno, mese, 1), OreGiorno.data <= date(anno, mese, n))}
+    giorni = [{"g": g, "data": date(anno, mese, g).isoformat(), "wd": GIORNI_IT[date(anno, mese, g).weekday()], "r": righe.get(g)} for g in range(1, n + 1)]
+    return jsonify(giorni=giorni, **riepilogo_ore(uid, anno, mese))
+
+
+@app.route("/stipendi/ore/salva", methods=["POST"])
+@login_required
+def ore_salva():
+    uid = session["uid"]
+    try:
+        d = date.fromisoformat(request.form.get("data", ""))
+    except ValueError:
+        abort(400)
+    o = OreGiorno.query.filter_by(user_id=uid, data=d).first()
+    vals = {}
+    for a in ORE_CAMPI:
+        x = _num(request.form.get(a, "").strip().replace(",", "."))
+        vals[a] = x if x is not None and 0 <= x <= 100000 else None
+    pr = request.form.get("pranzo", "")
+    pr = pr if pr in ("mensa", "fuori") else None
+    pnota, nota = request.form.get("pranzo_nota", "").strip()[:200], request.form.get("nota", "").strip()[:300]
+    vuoto = not any(v for v in vals.values()) and not pr and not nota and not pnota
+    if vuoto:
+        if o:
+            db.session.delete(o)
+    else:
+        if not o:
+            o = OreGiorno(user_id=uid, data=d)
+            db.session.add(o)
+        for a, x in vals.items():
+            setattr(o, a, x)
+        o.pranzo, o.pranzo_nota, o.nota = pr, pnota or None, nota or None
+    db.session.commit()
+    return jsonify(ok=True, **riepilogo_ore(uid, d.year, d.month))
+
+
+@app.route("/stipendi/ore/storico", methods=["POST"])
+@login_required
+def ore_storico():
+    """Carica una volta lo storico 2026 (dal vecchio Excel delle ore), senza toccare i giorni gia' presenti."""
+    uid = session["uid"]
+    if not os.path.exists(ORE_STORICO):
+        abort(404)
+    esist = {r.data for r in OreGiorno.query.filter_by(user_id=uid).with_entities(OreGiorno.data)}
+    n = 0
+    for r in json.load(open(ORE_STORICO, encoding="utf-8")):
+        d = date.fromisoformat(r["d"])
+        if d in esist:
+            continue
+        o = OreGiorno(user_id=uid, data=d, pranzo=r.get("pranzo"), pranzo_nota=r.get("pranzo_nota"), nota=r.get("nota"))
+        for a in ORE_CAMPI:
+            setattr(o, a, r.get(a))
+        db.session.add(o)
+        n += 1
+    db.session.commit()
+    flash(f"Storico caricato: {n} giorni.")
+    return redirect(url_for("ore_pagina", mese="2026-10"))
+
+
+@app.route("/stipendi/ore/esporta")
+@login_required
+def ore_esporta():
+    """Excel con un foglio per mese (come il vecchio 'Riepilogo ore'), il piu' recente per primo."""
+    import calendar
+    from openpyxl.styles import Alignment, PatternFill
+    uid = session["uid"]
+    righe = OreGiorno.query.filter_by(user_id=uid).order_by(OreGiorno.data).all()
+    if not righe:
+        flash("Non ci sono ancora ore da esportare.")
+        return redirect(url_for("ore_pagina"))
+    per_mese = {}
+    for r in righe:
+        per_mese.setdefault((r.data.year, r.data.month), {})[r.data.day] = r
+    wb = Workbook()
+    wb.remove(wb.active)
+    intest = ["Data", "Ore lavoro", "Smartworking", "Ferie", "Permessi", "Festività non godute", "Festività godute", "Trasferta", "Pranzo", "Caffè", "Benzina/spese varie", "Note"]
+    grigio = PatternFill("solid", fgColor="EEF1F6")
+    for (a, m) in sorted(per_mese, reverse=True):
+        ws = wb.create_sheet(f"{MESI_LUN[m - 1]} {a}")
+        ws.append(intest)
+        for c in ws[1]:
+            c.font = Font(bold=True)
+            c.alignment = Alignment(wrap_text=True, vertical="center")
+        n = calendar.monthrange(a, m)[1]
+        for g in range(1, n + 1):
+            d = date(a, m, g)
+            o = per_mese[(a, m)].get(g)
+            if o:
+                if o.pranzo == "mensa":
+                    pr = o.pranzo_importo if o.pranzo_importo else "standard"
+                elif o.pranzo == "fuori":
+                    pr = o.pranzo_nota or (f"{o.pranzo_importo:g}€" if o.pranzo_importo else "fuori")
+                else:
+                    pr = None
+                ws.append([d, o.lavoro, o.sw, o.ferie, o.permessi, o.fest_non, o.fest_god, o.trasferta, pr, o.caffe, o.spese, o.nota])
+            else:
+                ws.append([d])
+            ws.cell(ws.max_row, 1).number_format = "ddd dd/mm/yyyy"
+            if d.weekday() >= 5:
+                for c in ws[ws.max_row]:
+                    c.fill = grigio
+        tot = n + 2
+        ws.cell(tot, 1, "TOTALE").font = Font(bold=True)
+        for col in "BCDEFGHJK":
+            ws[f"{col}{tot}"] = f"=SUM({col}2:{col}{n + 1})"
+            ws[f"{col}{tot}"].font = Font(bold=True)
+        ws[f"I{tot}"] = f'=COUNTIF(I2:I{n + 1},"standard")+COUNT(I2:I{n + 1})'
+        ws[f"I{tot}"].font = Font(bold=True)
+        ws.cell(tot + 1, 9, "↑ giorni di mensa").font = Font(italic=True, color="666666")
+        ws.column_dimensions["A"].width = 17
+        for col in "BCDEFGHIJK":
+            ws.column_dimensions[col].width = 14
+        ws.column_dimensions["L"].width = 30
+        ws.freeze_panes = "B2"
+    wb.properties.title = "ore-export"
+    bio = io.BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    return send_file(bio, as_attachment=True, download_name=f"Riepilogo_ore_{date.today().isoformat()}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
