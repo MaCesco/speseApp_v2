@@ -1621,6 +1621,9 @@ def ore_dict(o):
     d = {"data": o.data.isoformat(), "pranzo": o.pranzo or "", "pranzo_nota": o.pranzo_nota or "", "nota": o.nota or ""}
     for a in ORE_CAMPI:
         d[a] = getattr(o, a)
+    # "Extra / spese varie" e' una sola colonna: include il vecchio importo del pranzo
+    ex = round((o.spese or 0) + (o.pranzo_importo or 0), 2)
+    d["spese"], d["pranzo_importo"] = (ex or None), None
     return d
 
 
@@ -1646,11 +1649,13 @@ def riepilogo_ore(uid, anno, mese):
     t = {a: round(sum(getattr(r, a) or 0 for r in righe), 2) for a in ORE_CAMPI}
     t["mensa"] = sum(1 for r in righe if r.pranzo == "mensa")
     t["fuori"] = sum(1 for r in righe if r.pranzo == "fuori")
-    t["fuori_eur"] = round(sum((r.pranzo_importo or 0) for r in righe if r.pranzo == "fuori"), 2)
+    ex = lambda r: (r.pranzo_importo or 0) + (r.spese or 0)  # extra / spese varie del giorno
+    t["extra"] = round(sum(ex(r) for r in righe), 2)
+    t["fuori_eur"] = round(sum(ex(r) for r in righe if r.pranzo == "fuori"), 2)
     t["giorni_reg"] = len(righe)
     t["feriali"] = giorni_feriali(anno, mese)
     t["giorni"] = round(t["feriali"] - t["ferie"] / 8 - t["fest_non"] / 8, 2)
-    t["sup"] = round(sum((r.pranzo_importo or 0) for r in righe if r.pranzo == "mensa"), 2)
+    t["sup"] = round(sum(ex(r) for r in righe if r.pranzo == "mensa"), 2)
     conf, fonte = [], None
     srow = Stipendio.query.filter_by(user_id=uid, anno=anno, mese=mese, tipo="mensile").first()
     rec = CedolinoPdf.query.filter_by(user_id=uid, anno=anno, mese=mese, tipo="mensile").first()
@@ -1785,7 +1790,7 @@ def ore_esporta():
         per_mese.setdefault((r.data.year, r.data.month), {})[r.data.day] = r
     wb = Workbook()
     wb.remove(wb.active)
-    intest = ["Data", "Ore lavoro", "Smartworking", "Ferie", "Permessi", "Festività non godute", "Festività godute", "Trasferta", "Pranzo", "Caffè", "Benzina/spese varie", "Note"]
+    intest = ["Data", "Ore lavoro", "Smartworking", "Ferie", "Permessi", "Festività non godute", "Festività godute", "Trasferta", "Pranzo", "Caffè", "Extra / spese varie", "Note"]
     grigio = PatternFill("solid", fgColor="EEF1F6")
     for (a, m) in sorted(per_mese, reverse=True):
         ws = wb.create_sheet(f"{MESI_LUN[m - 1]} {a}")
@@ -1799,12 +1804,12 @@ def ore_esporta():
             o = per_mese[(a, m)].get(g)
             if o:
                 if o.pranzo == "mensa":
-                    pr = o.pranzo_importo if o.pranzo_importo else "standard"
+                    pr = "standard"
                 elif o.pranzo == "fuori":
-                    pr = o.pranzo_nota or (f"{o.pranzo_importo:g}€" if o.pranzo_importo else "fuori")
+                    pr = o.pranzo_nota or "fuori"
                 else:
                     pr = None
-                ws.append([d, o.lavoro, o.sw, o.ferie, o.permessi, o.fest_non, o.fest_god, o.trasferta, pr, o.caffe, o.spese, o.nota])
+                ws.append([d, o.lavoro, o.sw, o.ferie, o.permessi, o.fest_non, o.fest_god, o.trasferta, pr, o.caffe, round((o.spese or 0) + (o.pranzo_importo or 0), 2) or None, o.nota])
             else:
                 ws.append([d])
             ws.cell(ws.max_row, 1).number_format = "ddd dd/mm/yyyy"
