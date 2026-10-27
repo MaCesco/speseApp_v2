@@ -28,6 +28,8 @@
 .reg td.nt input{min-width:120px;text-align:left}
 .reg .tp{min-width:104px}
 .sw{overflow-x:auto}
+.reg .al{display:block;font-size:11.5px;font-weight:700;color:#b45309;white-space:nowrap}
+.reg tr.warn td.d{background:color-mix(in srgb,#f59e0b 22%,transparent);box-shadow:inset 3px 0 0 #f59e0b}
 .reg input.pieno{font-weight:700;background:color-mix(in srgb,var(--cc) 20%,var(--inp));border-color:color-mix(in srgb,var(--cc) 55%,var(--line))}
 .reg input[name=lavoro]{--cc:#4f46e5}.reg input[name=sw]{--cc:#0891b2}.reg input[name=ferie]{--cc:#16a34a}.reg input[name=permessi]{--cc:#f59e0b}.reg input[name=trasferta]{--cc:#9333ea}.reg input[name=fest_non]{--cc:#db2777}.reg input[name=fest_god]{--cc:#65a30d}.reg input[name=caffe]{--cc:#ea580c}.reg input[name=spese]{--cc:#64748b}
 .reg [name=lavoro]{--c:var(--in)}.reg [name=sw]{--c:#6366f1}.reg [name=ferie]{--c:#16a34a}.reg [name=permessi]{--c:#d97706}.reg [name=trasferta]{--c:#0891b2}.reg [name=fest_non],.reg [name=fest_god]{--c:#9333ea}.reg [name=pranzo]{--c:#0d9488}.reg [name=caffe],.reg [name=spese]{--c:#64748b}.reg select.tp,.reg [name=nota]{--c:#64748b}
@@ -38,6 +40,10 @@
 @media(min-width:821px){
 #reg .sw{max-height:calc(100vh - 110px);overflow:auto}
 .reg thead th{position:sticky;top:0;z-index:3;background:var(--card);box-shadow:0 1px 0 var(--line)}
+}
+@media(min-width:1200px){
+#reg .sw{max-height:none;overflow:visible}
+.reg thead th{top:var(--nh,76px)}
 }
 @media(max-width:820px){
 .tl{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -69,7 +75,8 @@
 
 <div class="card" id="reg"><div class="row" style="margin-bottom:10px"><h2 style="margin:0;flex:1 1 auto">Registro giornaliero: <span id="rmese"></span></h2>
 <label style="flex:0 0 auto;display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;color:var(--mu);cursor:pointer"><input type="checkbox" id="we" style="width:auto" checked> Mostra sabati e domeniche</label></div>
-<p class="mu" style="margin:0 0 10px;font-size:14px">Scegli il tipo di giornata e le 8 ore si compilano da sole, poi puoi correggerle (per esempio 7,5 in sede + 0,5 di permesso). Si salva da solo.</p>
+<p class="mu" style="margin:0 0 10px;font-size:14px">Scegli il tipo di giornata e le 8 ore si compilano da sole. Se poi scrivi ore in un'altra colonna, quella del tipo scelto si riduce da sola per far tornare 8 (per esempio 7,5 in sede e 0,5 di permesso). Puoi sempre scrivere altri valori a mano: se la somma non fa 8 compare un avviso. Si salva da solo.</p>
+<p id="alg" style="display:none;margin:0 0 10px;font-size:14px;font-weight:700;color:#b45309"></p>
 <div class="sw"><table class="reg" id="rg"><thead><tr><th style="text-align:left">Giorno</th><th>Tipo</th><th>In sede (h)</th><th>Smart working (h)</th><th>Ferie (h)</th><th>Permessi (h)</th><th>Trasferta (h)</th><th>Fest. non godute (h)</th><th>Fest. godute (h)</th><th>Pranzo</th><th>Caffè (€)</th><th>Extra / Spese varie (€)</th><th>Note</th></tr></thead><tbody></tbody></table></div></div>
 
 <script>
@@ -83,7 +90,25 @@ const TIPI=[['','—'],['lavoro','In sede'],['sw','Smart working'],['ferie','Fer
 const oggi=new Date().toISOString().slice(0,10);
 let dati=null,timer={};
 const num=v=>v==null||v===''?'':v;
-function tipoDi(r){if(!r)return '';const a=CAMPI.filter(c=>r[c]);if(a.length==1&&r[a[0]]==8)return a[0];return ''}
+const ORE8=['lavoro','sw','ferie','permessi','trasferta','fest_non','fest_god'],PRIO=['permessi','ferie','fest_non','fest_god','trasferta','sw','lavoro'];
+function tipoDi(r){if(!r)return '';const a=ORE8.filter(c=>r[c]);return a.length?PRIO.find(k=>a.includes(k)):''}
+const vv=(tr,k)=>parseFloat(String(tr.querySelector(`[name=${k}]`).value).replace(',','.'))||0;
+function somma(tr){return ORE8.reduce((s,k)=>s+vv(tr,k),0)}
+function avviso(tr){
+ const s=Math.round(somma(tr)*100)/100,we=tr.classList.contains('we'),bad=!we&&s>0&&Math.abs(s-8)>0.001;
+ tr.classList.toggle('warn',bad);const el=tr.querySelector('.al');el.textContent=bad?'⚠ '+nf.format(s)+' h su 8':'';
+ el.title=bad?'La somma delle ore di questo giorno è '+nf.format(s)+' invece di 8':'';
+}
+function avvisi(){const g=[...document.querySelectorAll('#rg tr.warn')].map(t=>+t.dataset.d.slice(8));
+ const e=$('alg');e.style.display=g.length?'':'none';e.textContent=g.length?'⚠ Giorni in cui la somma delle ore non fa 8: '+g.join(', ')+'.':''}
+function adegua(tr,k){
+ const res=tr.dataset.res;if(!res||res===k||!ORE8.includes(k))return;
+ const re=tr.querySelector(`[name=${res}]`);
+ if(!re.value){tr.dataset.res='';return}
+ const altre=ORE8.filter(x=>x!==res).reduce((s,x)=>s+vv(tr,x),0);
+ const n=Math.max(0,Math.round((8-altre)*100)/100);
+ re.value=n?String(n):'';colora(re);aggRar(tr);if(!n)tr.dataset.res='';
+}
 function tiles(t){
  const fest=(t.fest_non||0)+(t.fest_god||0);
  const v=[['In sede',hh(t.lavoro),t.trasferta?'+ '+hh(t.trasferta)+' di trasferta':''],['Smart working',hh(t.sw),''],['Ferie',hh(t.ferie),(t.ferie/8)?nf.format(t.ferie/8)+' giorni':''],['Permessi',hh(t.permessi),''],
@@ -101,8 +126,8 @@ function riga(g){
  const r=g.r||{},we=['sab','dom'].includes(g.wd);
  const inp=(k,l,extra,cl)=>`<td class="${cl||''}${['trasferta','fest_non','fest_god'].includes(k)&&r[k]?' has':''}" data-l="${l}"><input type="number" step="0.25" min="0" inputmode="decimal" name="${k}" value="${num(r[k])}" ${extra||''}></td>`;
  const tp=TIPI.map(t=>`<option value="${t[0]}"${tipoDi(g.r)==t[0]?' selected':''}>${t[1]}</option>`).join('');
- return `<tr data-d="${g.data}" class="${we?'we':''} ${g.data==oggi?'oggi':''}" ${we&&!g.r?'data-vuoto="1"':''}>
- <td class="d">${g.g} <small>${g.wd}</small></td>
+ return `<tr data-d="${g.data}" data-res="${tipoDi(g.r)}" class="${we?'we':''} ${g.data==oggi?'oggi':''}" ${we&&!g.r?'data-vuoto="1"':''}>
+ <td class="d">${g.g} <small>${g.wd}</small><span class="al"></span></td>
  <td class="tpc" data-l="Tipo"><select class="tp" aria-label="Tipo di giornata">${tp}</select></td>
  ${inp('lavoro','In sede (h)')}${inp('sw','Smart working (h)')}${inp('ferie','Ferie (h)')}${inp('permessi','Permessi (h)')}${inp('trasferta','Trasferta (h)','','rar')}${inp('fest_non','Fest. non godute (h)','','rar')}${inp('fest_god','Fest. godute (h)','','rar')}
  <td class="p" data-l="Pranzo"><div><select name="pranzo" aria-label="Pranzo"><option value="">—</option><option value="mensa"${r.pranzo=='mensa'?' selected':''}>Mensa</option><option value="fuori"${r.pranzo=='fuori'?' selected':''}>Fuori</option></select>
@@ -114,7 +139,7 @@ function riga(g){
 function mostraWE(){document.querySelectorAll('#rg tbody tr.we').forEach(t=>t.style.display=(t.dataset.vuoto&&!$('we').checked)?'none':'')}
 function disegna(d){
  $('rmese').textContent=MESI[+$('mese').value.slice(5,7)-1];
- $('rg').querySelector('tbody').innerHTML=d.giorni.map(riga).join('');document.querySelectorAll('#rg tr[data-d]').forEach(aggFuori);document.querySelectorAll('#rg tbody input,#rg tbody select').forEach(colora);mostraWE();tiles(d.tot);conf(d);
+ $('rg').querySelector('tbody').innerHTML=d.giorni.map(riga).join('');document.querySelectorAll('#rg tr[data-d]').forEach(aggFuori);document.querySelectorAll('#rg tbody input,#rg tbody select').forEach(colora);document.querySelectorAll('#rg tr[data-d]').forEach(avviso);avvisi();mostraWE();tiles(d.tot);conf(d);
 }
 function carica(){
  const m=$('mese').value;if(!m)return;
@@ -132,6 +157,7 @@ function aggRar(tr){['trasferta','fest_non','fest_god'].forEach(k=>{const i=tr.q
 function preset(tr,v){
  CAMPI.forEach(c=>tr.querySelector(`[name=${c}]`).value='');
  if(v){tr.querySelector(`[name=${v}]`).value=8}
+ tr.dataset.res=v||'';
  aggRar(tr);const pr=tr.querySelector('[name=pranzo]');
  if(v=='lavoro'&&!pr.value)pr.value='mensa';
  if(v!=='lavoro'&&pr.value=='mensa'&&v!==''){pr.value=''}
@@ -142,13 +168,13 @@ document.addEventListener('change',e=>{
  if(e.target.classList.contains('tp'))preset(tr,e.target.value);
  tr.querySelectorAll('input,select').forEach(colora);
  if(e.target.name=='pranzo')tr.querySelector('[name=pranzo_nota]').style.display=e.target.value=='fuori'?'':'none';
- aggFuori(tr);
+ aggFuori(tr);avviso(tr);avvisi();
  clearTimeout(timer[tr.dataset.d]);salva(tr);
 });
 document.addEventListener('input',e=>{
  const tr=e.target.closest('#rg tr[data-d]');if(!tr)return;colora(e.target);
  if(e.target.tagName=='SELECT')return;
- aggFuori(tr);
+ adegua(tr,e.target.name);avviso(tr);avvisi();aggFuori(tr);
  clearTimeout(timer[tr.dataset.d]);timer[tr.dataset.d]=setTimeout(()=>salva(tr),700);
 });
 $('mese').addEventListener('change',carica);$('we').addEventListener('change',mostraWE);
