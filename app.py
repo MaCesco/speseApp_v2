@@ -771,7 +771,7 @@ def n_prepagate(s):
 @login_required
 def ripetizioni():
     uid = session["uid"]
-    al = {s.id: dict(s=s, n=0, dovuto=0.0, incassato=0.0, prima=None, ultima=None) for s in Studente.query.filter_by(user_id=uid)}
+    al = {s.id: dict(s=s, n=0, dovuto=0.0, incassato=0.0, inc_anno=0.0, prima=None, ultima=None) for s in Studente.query.filter_by(user_id=uid)}
     inc_mesi, ult, oggi_d = {}, {}, date.today()
     q = db.session.query(Lezione.studente_id, Lezione.ore, Lezione.tariffa, Lezione.pagata, Lezione.data).filter(Lezione.user_id == uid)
     for sid, ore, tar, pag, d in q:
@@ -782,6 +782,8 @@ def ripetizioni():
             ult[sid] = (kk, tar if tar is not None else a["s"].tariffa)
         if pag:
             a["incassato"] += euro
+            if d.year == oggi_d.year:
+                a["inc_anno"] += euro
             k = d.strftime("%Y-%m")
             inc_mesi[k] = round(inc_mesi.get(k, 0) + euro, 2)
         else:
@@ -799,9 +801,9 @@ def ripetizioni():
     tutti = request.args.get("tutti") == "1"
     visibili = [a for a in elenco if tutti or a["n"] or (a["ultima"] and a["ultima"] >= anno)]
     tariffe = {a["s"].nome: (ult[a["s"].id][1] if a["s"].id in ult else a["s"].tariffa) or 0 for a in elenco}
-    return render_template("ripetizioni.html", tariffe=tariffe, elenco=elenco, visibili=visibili, tutti=tutti, oggi=date.today().isoformat(),
+    return render_template("ripetizioni.html", anno_corr=oggi_d.year, tariffe=tariffe, elenco=elenco, visibili=visibili, tutti=tutti, oggi=date.today().isoformat(),
                            inc_mesi=inc_mesi, tot=sum(a["dovuto"] for a in elenco), tot_n=sum(a["n"] for a in elenco),
-                           n_deb=sum(1 for a in elenco if a["n"]), p=ore_periodi(uid), ultimo_file=ultimo_file(uid))
+                           n_deb=sum(1 for a in elenco if a["n"]), p=ore_periodi(uid), tf=tariffe_periodi(uid), ultimo_file=ultimo_file(uid))
 
 
 @app.route("/ripetizioni/<int:id>")
@@ -1065,8 +1067,63 @@ def ore_periodi(uid):
         sett=ore_tra(uid, s0, oggi + g), sett_prog=ore_tra(uid, oggi + g, s0 + timedelta(days=7)),
         sett_prec=ore_tra(uid, ps0, s0), sett_prec_pari=ore_tra(uid, ps0, ps0 + timedelta(days=oggi.weekday() + 1)),
         nome_mese_prec=f"{MESI_LUNGHI[pm0.month - 1]} {pm0.year}",
+        nome_mese_corr=f"{MESI_LUNGHI[m0.month - 1]} {m0.year}",
         periodo_sett_prec=f"dal {ps0.day}/{ps0.month} al {fine_ps.day}/{fine_ps.month}",
-        periodo_sett=f"dal {s0.day}/{s0.month} a oggi")
+        periodo_sett=f"dal {s0.day}/{s0.month} a oggi", n_sett=oggi.isocalendar()[1], n_sett_prec=ps0.isocalendar()[1])
+
+
+@app.template_filter("ore_it")
+def filtro_ore_it(x):
+    return filtro_ore(x).replace(".", ",")
+
+
+@app.context_processor
+def _util_pct():
+    from markupsafe import Markup
+    def pct(cur, prec):
+        """Variazione percentuale tra due importi, in piccolo tra parentesi (vuoto se il precedente e' zero)."""
+        if not prec:
+            return ""
+        d = round((cur / prec - 1) * 100)
+        return Markup(f'<span class="pc">({"+" if d >= 0 else "−"}{abs(d)}%)</span>')
+    return {"pct": pct}
+
+
+@app.template_filter("eur_it")
+def filtro_eur_it(x):
+    """Euro all'italiana: senza decimali se intero, altrimenti 2 (1.105 / 1.105,50)"""
+    return filtro_it2(x).removesuffix(",00")
+
+
+@app.template_filter("it2")
+def filtro_it2(x):
+    """Numero con 2 decimali all'italiana: 1.234,50"""
+    return f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def tariffe_periodi(uid):
+    """Ore e incasso maturato per ogni tariffa oraria nei periodi mese/settimana (solo lezioni gia' svolte) e media euro/ora."""
+    oggi, g = date.today(), timedelta(days=1)
+    m0 = oggi.replace(day=1)
+    pm0 = (m0 - g).replace(day=1)
+    s0 = oggi - timedelta(days=oggi.weekday())
+    ps0 = s0 - timedelta(days=7)
+    periodi = {"mese": (m0, oggi + g), "mese_prec": (pm0, m0), "sett": (s0, oggi + g), "sett_prec": (ps0, s0),
+               # stessi giorni del periodo precedente (per il colore verde/rosso del fatturato)
+               "mese_prec_pari": (pm0, min(m0, pm0 + timedelta(days=oggi.day))), "sett_prec_pari": (ps0, ps0 + timedelta(days=oggi.weekday() + 1))}
+    out = {}
+    for k, (a, b) in periodi.items():
+        righe = (db.session.query(Lezione.ore, Lezione.tariffa, Studente.tariffa)
+                 .join(Studente, Studente.id == Lezione.studente_id)
+                 .filter(Lezione.user_id == uid, Lezione.data >= a, Lezione.data < b).all())
+        per = {}
+        for ore, tl, ts in righe:
+            t = round(float(tl if tl is not None else (ts or 0)), 2)
+            per[t] = per.get(t, 0.0) + (ore or 0)
+        voci = [{"t": t, "ore": round(o, 2), "euro": round(o * t, 2)} for t, o in sorted(per.items(), reverse=True) if o]
+        ore_t, euro_t = round(sum(v["ore"] for v in voci), 2), round(sum(v["euro"] for v in voci), 2)
+        out[k] = {"voci": voci, "ore": ore_t, "euro": euro_t, "media": round(euro_t / ore_t, 2) if ore_t else None}
+    return out
 
 
 @app.route("/ripetizioni/calendario")
