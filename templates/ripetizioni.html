@@ -34,7 +34,7 @@ function suggerisci(){const v=n.value.trim(),c=Object.prototype.hasOwnProperty.c
 n.addEventListener('input',suggerisci);n.addEventListener('change',suggerisci)})</script>
 <datalist id="al">{% for a in elenco %}<option value="{{ a.s.nome }}">{% endfor %}</datalist>
 <div class="row ph"><h1>{{ ic('rip') }}Ripetizioni</h1></div>
-<div class="sbtns"><a href="/ripetizioni/calendario">Calendario settimanale</a><a href="/ripetizioni/confronti">Confronti tra anni e mesi →</a><a href="#excel">File Excel</a></div>
+<div class="sbtns"><a href="/ripetizioni/confronti">Confronti tra anni e mesi →</a><a href="#excel">File Excel</a></div>
 <div class="pg">
 <div class="lft">
 <div class="s2">
@@ -73,10 +73,10 @@ n.addEventListener('input',suggerisci);n.addEventListener('change',suggerisci)})
 <div class="tft" id="tf-sett_prec" hidden>{% if tf.sett_prec.voci %}<table class="tfx">{% for v in tf.sett_prec.voci %}<tr><td>{{ v.t|ore_it }} €/h</td><td>{{ v.ore|ore_it }} h</td><td>{{ v.euro|it2 }} €</td></tr>{% endfor %}<tr class="tot"><td>Totale</td><td>{{ tf.sett_prec.ore|ore_it }} h</td><td>{{ tf.sett_prec.euro|it2 }} €</td></tr></table>{% else %}<p class="mu" style="margin:6px 4px">Nessuna lezione svolta in questo periodo.</p>{% endif %}</div>
 </div></div>
 <script>document.querySelectorAll('input[name=tfp]').forEach(r=>r.addEventListener('change',()=>{document.querySelectorAll('.tft').forEach(d=>d.hidden=d.id!=='tf-'+r.value)}))</script>
-<p class="mu" style="font-size:13px;margin:0">Fatturato = ore svolte × tariffa, già incassato o no. Il fatturato attuale è verde se sei pari o sopra al periodo precedente negli stessi giorni, rosso se sei sotto.</p>
+<p class="mu" style="font-size:13px;margin:0">Fatturato = ORE SVOLTE × TARIFFA: verde se pari o superiore allo stesso periodo precedente, rosso altrimenti</p>
 <div class="card"><div class="row"><h2 style="margin:0">Incassi mese per mese</h2><select id="anno" aria-label="Anno" style="max-width:140px"></select></div>
 <div class="ch" data-ctl="anno" style="margin-top:12px"><canvas id="cg"></canvas></div>
-<p class="mu" style="font-size:14px;margin:8px 0 0">Conta le lezioni pagate nel mese in cui sono state svolte. Le medie considerano i mesi con incassi; il mese in corso è escluso.</p></div>
+<p class="mu" style="font-size:14px;margin:8px 0 0">Conta le lezioni pagate nel mese in cui sono state svolte.</p></div>
 <div class="duo">
 <div class="card"><h2>Nuova lezione</h2>
 <form class="f" method="post" action="/ripetizioni/nuova"><input type="hidden" name="_t" value="{{ csrf }}">

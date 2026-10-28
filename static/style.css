@@ -177,7 +177,51 @@ body[data-sez=home] main{min-height:calc(100vh - 70px);display:flex;flex-directi
 .b-sp{background:linear-gradient(145deg,#4f46e5,#312e81)}
 .b-rp{background:linear-gradient(145deg,#0891b2,#0b4a5e)}
 .b-st{background:linear-gradient(145deg,#ee6a52,#a1331f)}
-@media(max-width:900px){.hub{grid-template-columns:1fr;gap:14px}.big{min-height:0;padding:26px 20px}body[data-sez=home] main{min-height:0;justify-content:flex-start}}
+@media(max-width:900px){.hub{gap:14px}.big{min-height:0;padding:26px 20px}body[data-sez=home] main{min-height:0;justify-content:flex-start}}
 @media(max-width:720px){nav{border-bottom:0;border-top:3px solid var(--in)}}
 svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .big .art{width:clamp(150px,17vw,260px);height:auto;margin-bottom:6px;filter:drop-shadow(0 10px 14px rgba(0,0,0,.28))}
+
+/* ===== agenda e scadenze ===== */
+:root{--c-ag:#9333ea}[data-theme=dark]{--c-ag:#c084fc}
+body[data-sez=agenda]{--in:#9333ea;--hero:#3b1763;--sel:#6b21a8}
+[data-theme=dark] body[data-sez=agenda]{--in:#c084fc;--hero:#3b1763;--sel:#9333ea}
+nav a.n-ag .ic{color:var(--c-ag)}nav a.n-ag{position:relative}
+.bdg{font-style:normal;background:var(--r);color:#fff;font-size:11px;font-weight:800;border-radius:99px;padding:0 6px;margin-left:6px;line-height:18px;display:inline-block}
+.b-ag{background:linear-gradient(145deg,#a855f7,#4c1d95)}
+.hub{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:1180px}
+.big{min-height:min(36vh,330px);padding:22px 18px;gap:8px}
+.big .art{width:clamp(110px,12vw,185px);margin-bottom:2px}
+.hh{margin-bottom:20px}
+.hal{max-width:1180px;width:100%;margin:0 auto 16px;border-radius:18px;padding:12px 18px;background:color-mix(in srgb,var(--r) 14%,var(--card));border:1px solid color-mix(in srgb,var(--r) 45%,var(--line));color:var(--tx);text-decoration:none;display:flex;gap:12px;align-items:center}
+.hal b{color:var(--rt)}
+@media(max-width:900px){.hub{grid-template-columns:1fr}}
+@media(max-width:720px){nav a.n-ag .bdg{position:absolute;top:2px;right:8px;margin:0;line-height:16px;font-size:10px}}
+@media(min-width:901px){.big{min-height:min(33vh,310px)}}
+
+/* ===== agenda / scadenze separate ===== */
+:root{--c-sc:#a16207}[data-theme=dark]{--c-sc:#eab308}
+body[data-sez=scad]{--in:#a16207;--hero:#4a3305;--sel:#854d0e}
+[data-theme=dark] body[data-sez=scad]{--in:#ca8a04;--hero:#4a3305;--sel:#a16207}
+nav a.n-sc .ic{color:var(--c-sc)}nav a.n-sc{position:relative}
+.b-sc{background:linear-gradient(145deg,#d99a1e,#7c4a03)}
+.hub{grid-template-columns:repeat(6,minmax(0,1fr))}
+.hub>.big{grid-column:span 2}
+.hub>.big:nth-child(4){grid-column:2/span 2}
+.hub>.big:nth-child(5){grid-column:4/span 2}
+.big{min-height:min(30vh,270px)}
+.big .art{width:clamp(90px,10vw,150px)}
+@media(min-width:901px){.big{min-height:min(30vh,270px)}}
+@media(max-width:900px){.hub{grid-template-columns:1fr}.hub>.big,.hub>.big:nth-child(4),.hub>.big:nth-child(5){grid-column:auto}}
+@media(max-width:720px){nav a.n-sc .bdg{position:absolute;top:2px;right:4px;margin:0;line-height:16px;font-size:10px}nav a{font-size:11px}}
+
+/* ===== tasto "torna alla Home" ===== */
+nav a.rhome{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;padding:0;margin-right:12px;border-radius:50%;background:var(--bg);color:var(--tx);border:1px solid var(--line)}
+nav a.rhome svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+nav a.rhome:hover{background:var(--in);color:#fff;border-color:var(--in)}
+@media(max-width:720px){
+nav a.rhome{position:fixed;top:calc(8px + env(safe-area-inset-top));left:10px;z-index:20;margin:0;flex:none;width:40px;min-height:40px;padding:0;background:var(--card);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+body:not([data-sez=home]) main{padding-top:58px}}
+
+/* home: in alto solo Esci e tema (i riquadri al centro bastano) */
+@media(min-width:721px){nav.nav-home>a:not(.logo){display:none}}

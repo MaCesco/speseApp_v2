@@ -171,12 +171,39 @@ for _a in ORE_CAMPI:
     setattr(OreGiorno, _a, db.Column(db.Float))
 
 
+class Impegno(db.Model):
+    """Impegno extra dell'agenda (visita medica, concerto, ...)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    data = db.Column(db.Date, nullable=False, index=True)
+    ora_inizio = db.Column(db.String(5), default="")
+    ora_fine = db.Column(db.String(5), default="")
+    titolo = db.Column(db.String(150), nullable=False)
+    luogo = db.Column(db.String(150), default="")
+    nota = db.Column(db.String(500), default="")
+    colore = db.Column(db.String(10), default="")  # "" = colore della sezione
+
+
+class Scadenza(db.Model):
+    """Un pagamento con validita' (assicurazione, bollo, ...). L'ultimo di ogni voce dice quando scade."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    voce = db.Column(db.String(120), nullable=False)
+    importo = db.Column(db.Float)
+    data_pagamento = db.Column(db.Date)
+    validita_mesi = db.Column(db.Integer)
+    scadenza = db.Column(db.Date, index=True)
+    preavviso = db.Column(db.Integer, default=30)
+    nota = db.Column(db.String(500), default="")
+    chiusa = db.Column(db.Boolean, default=False, nullable=False)  # voce non piu' da rinnovare
+
+
 
 def migra():
     """Aggiunge le colonne nuove alle tabelle gia' esistenti (database online)."""
     from sqlalchemy import inspect, text
     insp = inspect(db.engine)
-    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER")):
+    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER"), ("impegno", "colore", "VARCHAR(10)")):
         if col not in [c["name"] for c in insp.get_columns(tab)]:
             db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN {col} {tipo}"))
     if "contenuto" not in [c["name"] for c in insp.get_columns("file_bilancio")]:
@@ -212,7 +239,13 @@ def csrf():
 @app.context_processor
 def ctx():
     session.setdefault("_t", secrets.token_hex(16))
-    return {"csrf": session["_t"], "ENTRATE": ENTRATE, "USCITE": USCITE}
+    n_alert = 0
+    if "uid" in session:
+        try:
+            n_alert = len(alert_scadenze(session["uid"]))
+        except Exception:
+            db.session.rollback()
+    return {"csrf": session["_t"], "ENTRATE": ENTRATE, "USCITE": USCITE, "n_alert": n_alert}
 
 
 @app.cli.command("crea-utente")
@@ -324,7 +357,7 @@ def logout():
 @app.route("/")
 @login_required
 def home():
-    return render_template("home.html")
+    return render_template("home.html", alert=alert_scadenze(session["uid"]))
 
 
 @app.route("/dashboard")
@@ -819,8 +852,9 @@ def allievo(id):
     svolte = [l for l in lez if l.data <= oggi]
     # fatturato (ore x tariffa, pagato o no) per mese e per settimana, dalle lezioni gia' svolte
     import calendar
-    per_mese, per_sett = {}, {}
+    per_mese, per_sett, ore_mese = {}, {}, {}
     for l in svolte:
+        ore_mese[(l.data.year, l.data.month)] = ore_mese.get((l.data.year, l.data.month), 0) + l.ore
         per_mese[(l.data.year, l.data.month)] = per_mese.get((l.data.year, l.data.month), 0) + val(l)
         lun = l.data - timedelta(days=l.data.weekday())
         per_sett[lun] = per_sett.get(lun, 0) + val(l)
@@ -830,8 +864,16 @@ def allievo(id):
     somma_m = sum(per_mese[k] for k in ms)
     media_m = somma_m / len(ms) if ms else 0
     media_s = somma_m / (sum(calendar.monthrange(*k)[1] for k in ms) / 7) if ms else 0
+    somma_h = sum(ore_mese[k] for k in ms)
+    ore_m = somma_h / len(ms) if ms else 0
+    ore_s = somma_h / (sum(calendar.monthrange(*k)[1] for k in ms) / 7) if ms else 0
     lun0 = oggi - timedelta(days=oggi.weekday())
-    medie = dict(m=media_m, s=media_s, m_cur=per_mese.get(cur_m, 0), m_prec=per_mese.get(prec_m, 0),
+    # allievo fermo da tempo: le medie sono vecchie, indichiamo a che periodo si riferiscono
+    vecchia = ""
+    if svolte and per_mese.get(cur_m, 0) == 0 and per_mese.get(prec_m, 0) == 0:
+        ult = max(l.data for l in svolte)
+        vecchia = f"al {ult.year}" if ult.year != oggi.year else f"a {MESI_LUNGHI[ult.month - 1]} {ult.year}"
+    medie = dict(ore_m=ore_m, ore_s=ore_s, vecchia=vecchia, nome_mese=MESI_LUNGHI[oggi.month - 1], m=media_m, s=media_s, m_cur=per_mese.get(cur_m, 0), m_prec=per_mese.get(prec_m, 0),
                  s_cur=per_sett.get(lun0, 0), s_prec=per_sett.get(lun0 - timedelta(days=7), 0))
     return render_template("allievo.html", anno_corr=yr, medie=medie,
                            inc_a=sum(val(l) for l in lez if l.pagata and l.data.year == yr),
@@ -846,7 +888,8 @@ def allievo(id):
                            incassato=sum(l.ore * (l.tariffa or s.tariffa or 0) for l in lez if l.pagata) + credito,
                            debito_ore=sum(l.ore for l in lez if not l.pagata),
                            credito_ore=round(credito / s.tariffa, 2) if (s.tariffa or 0) > 0 else 0,
-                           serie=[[l.data.isoformat(), l.ore] for l in lez],
+                           da=(request.args.get("da", "") if request.args.get("da", "").startswith("/agenda") else ""),
+                           serie=[[l.data.isoformat(), l.ore, round(val(l), 2) if l.pagata else 0] for l in lez],
                            credito=credito, n_pre=n_prepagate(s))
 
 
@@ -1154,60 +1197,8 @@ def tariffe_periodi(uid):
 @app.route("/ripetizioni/calendario")
 @login_required
 def rip_calendario():
-    try:
-        rif = datetime.strptime(request.args.get("data", ""), "%Y-%m-%d").date()
-    except ValueError:
-        rif = date.today()
-    lun = rif - timedelta(days=rif.weekday())
-    dom = lun + timedelta(days=6)
-    q = (db.session.query(Lezione, Studente).join(Studente, Lezione.studente_id == Studente.id)
-         .filter(Lezione.user_id == session["uid"], Lezione.data >= lun, Lezione.data <= dom)
-         .order_by(Lezione.data, Lezione.ora_inizio))
-    giorni = [dict(d=lun + timedelta(days=i), ev=[], senza=[]) for i in range(7)]
-    n, ore_tot = 0, 0.0
-    for l, s in q:
-        e = dict(sid=s.id, nome=s.nome, ini=l.ora_inizio, fine=l.ora_fine, ore=l.ore, materia=l.materia, mod=l.modalita, pagata=l.pagata)
-        g = giorni[(l.data - lun).days]
-        try:
-            h, m = map(int, l.ora_inizio.split(":"))
-            e["start"] = h * 60 + m
-            e["end"] = e["start"] + int(l.ore * 60)
-            if l.ora_fine:
-                h2, m2 = map(int, l.ora_fine.split(":"))
-                if h2 * 60 + m2 > e["start"]:
-                    e["end"] = h2 * 60 + m2
-            g["ev"].append(e)
-        except ValueError:
-            g["senza"].append(e)
-        n += 1
-        ore_tot += l.ore
-    for g in giorni:  # lezioni alla stessa ora (o che si sovrappongono): ognuna ha la sua colonna, affiancate
-        fine_col, gruppo, fine_gruppo = [], [], 0
-        for e in sorted(g["ev"], key=lambda x: (x["start"], x["end"])):
-            vis = max(e["end"], e["start"] + 30)  # le lezioni brevi sono disegnate alte almeno 30 minuti
-            if gruppo and e["start"] >= fine_gruppo:
-                for x in gruppo:
-                    x["ncols"] = len(fine_col)
-                fine_col, gruppo, fine_gruppo = [], [], 0
-            for i, fc in enumerate(fine_col):
-                if fc <= e["start"]:
-                    e["col"], fine_col[i] = i, vis
-                    break
-            else:
-                e["col"] = len(fine_col)
-                fine_col.append(vis)
-            gruppo.append(e)
-            fine_gruppo = max(fine_gruppo, vis)
-        for x in gruppo:
-            x["ncols"] = len(fine_col)
-    inizi = [e["start"] // 60 for g in giorni for e in g["ev"]]
-    fini = [-(-e["end"] // 60) for g in giorni for e in g["ev"]]
-    h0, h1 = min([8] + inizi), min(max([21] + fini), 24)
-    titolo = (f"{lun.day}–{dom.day} {MESI_LUNGHI[dom.month - 1]} {dom.year}" if lun.month == dom.month
-              else f"{lun.day} {MESI_LUNGHI[lun.month - 1]} – {dom.day} {MESI_LUNGHI[dom.month - 1]} {dom.year}")
-    return render_template("calendario.html", giorni=giorni, h0=h0, h1=h1, titolo=titolo, n=n, ore=ore_tot, oggi=date.today(),
-                           prec=(lun - timedelta(days=7)).isoformat(), succ=(lun + timedelta(days=7)).isoformat(),
-                           nomi=["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"], mesi_brevi=[m[:3] for m in MESI_LUNGHI])
+    """Il vecchio calendario e' stato sostituito dall'Agenda: i vecchi link portano li'."""
+    return redirect("/agenda")
 
 
 def ultimo_file(uid):
@@ -1917,3 +1908,288 @@ def ore_esporta():
     bio.seek(0)
     return send_file(bio, as_attachment=True, download_name=f"Riepilogo_ore_{date.today().isoformat()}.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+
+# ======================= AGENDA E SCADENZE =======================
+import calendar as _cal
+
+COLORI_IMPEGNO = ["#2563eb", "#0891b2", "#16a34a", "#eab308", "#f97316", "#dc2626", "#ec4899", "#64748b"]
+SUGGERIMENTI_SCADENZE = ["Assicurazione auto", "Bollo auto", "Revisione auto", "Assicurazione casa", "Abbonamento",
+                         "Tari", "Canone Rai", "Imu", "Tessera / abbonamento", "Altro"]
+
+
+def aggiungi_mesi(d, n):
+    m = d.month - 1 + n
+    y, m = d.year + m // 12, m % 12 + 1
+    return date(y, m, min(d.day, _cal.monthrange(y, m)[1]))
+
+
+def _ora(v):
+    v = (v or "").strip()
+    m = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", v)
+    return f"{int(m.group(1)):02d}:{m.group(2)}" if m else ""
+
+
+def _data(v):
+    try:
+        return date.fromisoformat((v or "").strip())
+    except ValueError:
+        return None
+
+
+def voci_scadenze(uid):
+    """Raggruppa i pagamenti per voce: per ognuna l'ultimo pagamento (quello che conta) e lo storico."""
+    gruppi = {}
+    for s in Scadenza.query.filter_by(user_id=uid).all():
+        gruppi.setdefault(s.voce.strip().lower(), []).append(s)
+    oggi, voci = date.today(), []
+    for lista in gruppi.values():
+        lista.sort(key=lambda s: (s.scadenza or date.min, s.data_pagamento or date.min, s.id))
+        ult = lista[-1]
+        giorni = (ult.scadenza - oggi).days if ult.scadenza else None
+        pre = max(30, ult.preavviso or 30)
+        if ult.chiusa or giorni is None:
+            stato = "chiusa" if ult.chiusa else "nd"
+        elif giorni < 0:
+            stato = "scaduta"
+        elif giorni <= 7:
+            stato = "urgente"
+        elif giorni <= pre:
+            stato = "presto"
+        else:
+            stato = "ok"
+        voci.append(dict(s=ult, storico=list(reversed(lista)), giorni=giorni, stato=stato))
+    ordine = {"scaduta": 0, "urgente": 1, "presto": 2, "ok": 3, "nd": 4, "chiusa": 5}
+    voci.sort(key=lambda v: (ordine[v["stato"]], v["s"].scadenza or date.max, v["s"].voce.lower()))
+    return voci
+
+
+def alert_scadenze(uid):
+    return [v for v in voci_scadenze(uid) if v["stato"] in ("scaduta", "urgente", "presto")]
+
+
+def _it(d):
+    return f"{d.day} {MESI_LUNGHI[d.month - 1][:3]} {d.year}"
+
+
+app.jinja_env.filters["data_it"] = lambda d: _it(d) if d else "—"
+app.jinja_env.filters["validita"] = lambda m: ("" if not m else f"{m // 12} anno" if m == 12 else f"{m // 12} anni" if m % 12 == 0 else f"{m} mesi")
+
+
+def _colonne(g):
+    """Eventi che si sovrappongono: ognuno la sua colonna, affiancati."""
+    fine_col, gruppo, fine_gruppo = [], [], 0
+    for e in sorted(g["ev"], key=lambda x: (x["start"], x["end"])):
+        vis = max(e["end"], e["start"] + 30)
+        if gruppo and e["start"] >= fine_gruppo:
+            for x in gruppo:
+                x["ncols"] = len(fine_col)
+            fine_col, gruppo, fine_gruppo = [], [], 0
+        for i, fc in enumerate(fine_col):
+            if fc <= e["start"]:
+                e["col"], fine_col[i] = i, vis
+                break
+        else:
+            e["col"] = len(fine_col)
+            fine_col.append(vis)
+        gruppo.append(e)
+        fine_gruppo = max(fine_gruppo, vis)
+    for x in gruppo:
+        x["ncols"] = len(fine_col)
+
+
+def eventi_periodo(uid, da, a):
+    """Tutti gli eventi tra due date (comprese): lezioni, impegni, scadenze. Dict data -> lista."""
+    out = {}
+    def put(d, e):
+        out.setdefault(d, []).append(e)
+    q = (db.session.query(Lezione, Studente).join(Studente, Lezione.studente_id == Studente.id)
+         .filter(Lezione.user_id == uid, Lezione.data >= da, Lezione.data <= a))
+    for l, s in q:
+        e = dict(kind="lez", titolo=s.nome, ini=l.ora_inizio or "", fine=l.ora_fine or "", href=f"/ripetizioni/{s.id}",
+                 cls="ok" if l.pagata else "no", sub=" ".join(x for x in (l.materia, l.modalita) if x), ore=l.ore)
+        put(l.data, e)
+    for i in Impegno.query.filter(Impegno.user_id == uid, Impegno.data >= da, Impegno.data <= a):
+        e = dict(kind="imp", titolo=i.titolo, ini=i.ora_inizio or "", fine=i.ora_fine or "", href="#", cls="imp", sub=i.luogo or "",
+                 raw=dict(id=i.id, data=i.data.isoformat(), ini=i.ora_inizio or "", fine=i.ora_fine or "", titolo=i.titolo,
+                          luogo=i.luogo or "", nota=i.nota or "", colore=i.colore or ""),
+                 colore=i.colore or "")
+        put(i.data, e)
+    for v in voci_scadenze(uid):
+        s = v["s"]
+        if s.scadenza and da <= s.scadenza <= a and not s.chiusa:
+            put(s.scadenza, dict(kind="scad", titolo=s.voce, ini="", fine="", href="/agenda?vista=scad", cls="scad",
+                                 sub="scadenza" + (f" · {s.importo:g} €" if s.importo else "")))
+    for d, lst in out.items():
+        for e in lst:
+            try:
+                h, m = map(int, e["ini"].split(":"))
+                e["start"] = h * 60 + m
+                e["end"] = e["start"] + int((e.get("ore") or 1) * 60)
+                if e["fine"]:
+                    h2, m2 = map(int, e["fine"].split(":"))
+                    if h2 * 60 + m2 > e["start"]:
+                        e["end"] = h2 * 60 + m2
+            except ValueError:
+                e["start"] = None
+        lst.sort(key=lambda e: (e["start"] is None, e["start"] or 0, e["titolo"]))
+    return out
+
+
+@app.route("/agenda")
+@login_required
+def agenda():
+    vista = request.args.get("vista", "sett")
+    if vista == "scad":
+        return redirect("/scadenze")
+    return _agenda("mese" if vista == "mese" else "sett")
+
+
+@app.route("/scadenze")
+@login_required
+def scadenze():
+    return _agenda("scad")
+
+
+def _agenda(vista):
+    uid = session["uid"]
+    rif = _data(request.args.get("data")) or date.today()
+    oggi = date.today()
+    nomi = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
+    ctxd = dict(colori=["#9333ea"] + COLORI_IMPEGNO, vista=vista, oggi=oggi, nomi=nomi, mesi_brevi=[m[:3] for m in MESI_LUNGHI], data=rif.isoformat(),
+                alert=alert_scadenze(uid))
+    if vista == "sett":
+        lun = rif - timedelta(days=rif.weekday())
+        dom = lun + timedelta(days=6)
+        ev = eventi_periodo(uid, lun, dom)
+        giorni = [dict(d=lun + timedelta(days=i), ev=[], senza=[]) for i in range(7)]
+        n_lez, ore_tot, n_imp = 0, 0.0, 0
+        for g in giorni:
+            for e in ev.get(g["d"], []):
+                (g["ev"] if e["start"] is not None and e["kind"] != "scad" else g["senza"]).append(e)
+                if e["kind"] == "lez":
+                    n_lez += 1
+                    ore_tot += e["ore"]
+                elif e["kind"] == "imp":
+                    n_imp += 1
+            _colonne(g)
+        inizi = [e["start"] // 60 for g in giorni for e in g["ev"]]
+        fini = [-(-e["end"] // 60) for g in giorni for e in g["ev"]]
+        h0, h1 = min([8] + inizi), min(max([21] + fini), 24)
+        titolo = (f"{lun.day}–{dom.day} {MESI_LUNGHI[dom.month - 1]} {dom.year}" if lun.month == dom.month
+                  else f"{lun.day} {MESI_LUNGHI[lun.month - 1]} – {dom.day} {MESI_LUNGHI[dom.month - 1]} {dom.year}")
+        ctxd.update(giorni=giorni, h0=h0, h1=h1, titolo=titolo, n_sett=lun.isocalendar()[1], n_lez=n_lez, n_imp=n_imp, ore=ore_tot,
+                    prec=(lun - timedelta(days=7)).isoformat(), succ=(lun + timedelta(days=7)).isoformat())
+    elif vista == "mese":
+        primo = rif.replace(day=1)
+        ultimo = rif.replace(day=_cal.monthrange(rif.year, rif.month)[1])
+        da = primo - timedelta(days=primo.weekday())
+        a = ultimo + timedelta(days=6 - ultimo.weekday())
+        ev = eventi_periodo(uid, da, a)
+        settimane, d = [], da
+        while d <= a:
+            settimane.append([dict(d=d + timedelta(days=i), fuori=(d + timedelta(days=i)).month != rif.month,
+                                   ev=ev.get(d + timedelta(days=i), [])) for i in range(7)])
+            d += timedelta(days=7)
+        ctxd.update(settimane=settimane, titolo=f"{MESI_LUNGHI[rif.month - 1].capitalize()} {rif.year}",
+                    prec=aggiungi_mesi(primo, -1).isoformat(), succ=aggiungi_mesi(primo, 1).isoformat(),
+                    nome_prec=MESI_LUNGHI[aggiungi_mesi(primo, -1).month - 1].capitalize(),
+                    nome_succ=MESI_LUNGHI[aggiungi_mesi(primo, 1).month - 1].capitalize())
+    else:
+        voci = voci_scadenze(uid)
+        tutti = Scadenza.query.filter_by(user_id=uid).all()
+        per_anno = {}
+        for s in tutti:
+            if s.data_pagamento and s.importo:
+                per_anno[s.data_pagamento.year] = per_anno.get(s.data_pagamento.year, 0) + s.importo
+        ctxd.update(voci=voci, per_anno=sorted(per_anno.items(), reverse=True), suggerimenti=SUGGERIMENTI_SCADENZE)
+    return render_template("agenda.html", **ctxd)
+
+
+def _torna():
+    nxt = request.form.get("next", "/agenda")
+    return redirect(nxt if nxt.startswith(("/agenda", "/scadenze")) else "/agenda")
+
+
+@app.route("/agenda/impegno/salva", methods=["POST"])
+@login_required
+def impegno_salva():
+    uid = session["uid"]
+    d = _data(request.form.get("data"))
+    titolo = request.form.get("titolo", "").strip()[:150]
+    if not d or not titolo:
+        flash("Servono almeno data e titolo.")
+        return _torna()
+    i = None
+    if request.form.get("id", "").isdigit():
+        i = Impegno.query.filter_by(id=int(request.form["id"]), user_id=uid).first()
+    if not i:
+        i = Impegno(user_id=uid)
+        db.session.add(i)
+    i.data, i.titolo = d, titolo
+    i.ora_inizio, i.ora_fine = ("", "") if request.form.get("tutto") else (_ora(request.form.get("ini")), _ora(request.form.get("fine")))
+    col = request.form.get("colore", "")
+    i.colore = col if col in COLORI_IMPEGNO else ""
+    i.luogo, i.nota = request.form.get("luogo", "").strip()[:150], request.form.get("nota", "").strip()[:500]
+    db.session.commit()
+    return _torna()
+
+
+@app.route("/agenda/impegno/<int:id>/elimina", methods=["POST"])
+@login_required
+def impegno_elimina(id):
+    i = Impegno.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    db.session.delete(i)
+    db.session.commit()
+    return _torna()
+
+
+@app.route("/agenda/scadenza/salva", methods=["POST"])
+@login_required
+def scadenza_salva():
+    uid = session["uid"]
+    voce = request.form.get("voce", "").strip()[:120]
+    if not voce:
+        flash("Indica di cosa si tratta (es. Assicurazione auto).")
+        return _torna()
+    imp = _num(request.form.get("importo", "").strip().replace(",", "."))
+    dp = _data(request.form.get("data_pagamento"))
+    val = _num(request.form.get("validita", "").strip().replace(",", "."))
+    mesi = int(val * (12 if request.form.get("unita") == "anni" else 1)) if val and 0 < val <= 1200 else None
+    sc = _data(request.form.get("scadenza"))
+    if not sc and dp and mesi:
+        sc = aggiungi_mesi(dp, mesi) - timedelta(days=1)  # scade il giorno prima dell'anniversario
+    if not mesi and dp and sc and sc > dp:
+        mesi = max(1, round(((sc - dp).days + 1) / 30.44))
+    pre = _num(request.form.get("preavviso", "30"))
+    s = None
+    if request.form.get("id", "").isdigit():
+        s = Scadenza.query.filter_by(id=int(request.form["id"]), user_id=uid).first()
+    if not s:
+        s = Scadenza(user_id=uid)
+        db.session.add(s)
+    s.voce, s.importo, s.data_pagamento, s.validita_mesi, s.scadenza = voce, imp, dp, mesi, sc
+    s.preavviso = int(pre) if pre and 30 <= pre <= 365 else 30
+    s.nota = request.form.get("nota", "").strip()[:500]
+    s.chiusa = False
+    db.session.commit()
+    return _torna()
+
+
+@app.route("/agenda/scadenza/<int:id>/elimina", methods=["POST"])
+@login_required
+def scadenza_elimina(id):
+    s = Scadenza.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    db.session.delete(s)
+    db.session.commit()
+    return _torna()
+
+
+@app.route("/agenda/scadenza/<int:id>/chiudi", methods=["POST"])
+@login_required
+def scadenza_chiudi(id):
+    s = Scadenza.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    s.chiusa = not s.chiusa
+    db.session.commit()
+    return _torna()

@@ -1,4 +1,4 @@
-{% from "_ic.html" import ic %}{% set _pth = request.path %}{% set sez = 'rip' if _pth.startswith(('/ripetizioni', '/lezione', '/modifica-lezione')) else 'stip' if _pth.startswith('/stipendi') else 'spese' if _pth.startswith(('/dashboard', '/movimenti', '/impostazioni', '/nuovo', '/importa', '/esporta')) else 'home' %}<!doctype html>
+{% from "_ic.html" import ic %}{% set _pth = request.path %}{% set sez = 'rip' if _pth.startswith(('/ripetizioni', '/lezione', '/modifica-lezione')) else 'stip' if _pth.startswith('/stipendi') else 'spese' if _pth.startswith(('/dashboard', '/movimenti', '/impostazioni', '/nuovo', '/importa', '/esporta')) else 'agenda' if _pth.startswith('/agenda') else 'scad' if _pth.startswith('/scadenze') else 'home' %}<!doctype html>
 <html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Le mie spese</title>
@@ -6,12 +6,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head><body data-sez="{{ sez }}">
-{% if session.uid %}<nav aria-label="Principale">
+{% if session.uid %}<nav aria-label="Principale"{% if _pth == '/' %} class="nav-home"{% endif %}>
+{% if _pth != '/' %}<a class="rhome" href="/" title="Torna alla Home (Esc)" aria-label="Torna alla Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a>{% endif %}
 <a class="logo" href="/">Le mie spese</a>
 <a href="/"{% if _pth == '/' %} aria-current="page"{% endif %}>{{ ic('home') }}<span>Home</span></a>
 <a href="/dashboard" class="n-sp"{% if sez == 'spese' %} aria-current="page"{% endif %}>{{ ic('dashboard') }}<span>Dashboard</span></a>
 <a href="/ripetizioni" class="n-rp"{% if sez == 'rip' %} aria-current="page"{% endif %}>{{ ic('rip') }}<span>Ripetizioni</span></a>
 <a href="/stipendi" class="n-st"{% if sez == 'stip' %} aria-current="page"{% endif %}>{{ ic('stip') }}<span>Stipendi</span></a>
+<a href="/agenda" class="n-ag"{% if sez == 'agenda' %} aria-current="page"{% endif %}>{{ ic('agenda') }}<span>Agenda</span></a>
+<a href="/scadenze" class="n-sc"{% if sez == 'scad' %} aria-current="page"{% endif %}>{{ ic('scad') }}<span>Scadenze</span>{% if n_alert %}<i class="bdg">{{ n_alert }}</i>{% endif %}</a>
 <form method="post" action="/logout" class="solo-desk" style="margin:0"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Esci</button></form>
 <button type="button" class="x tema solo-desk"></button>
 </nav>{% endif %}
@@ -19,6 +22,13 @@
 {% for m in get_flashed_messages() %}<div class="flash" role="status">{{ m }}</div>{% endfor %}
 {% block c %}{% endblock %}
 </main>
+{% if session.uid and _pth != '/' %}<script>document.addEventListener('keydown',function(e){
+ if(e.key!=='Escape'||e.defaultPrevented||e.ctrlKey||e.altKey||e.metaKey)return;
+ const a=document.activeElement;
+ if(document.querySelector('dialog[open],.ch-full'))return;
+ if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)){a.blur();return}
+ location.href='/';
+})</script>{% endif %}
 <script>(function(){
 const T=document.documentElement,bs=document.querySelectorAll('.tema');
 if(!bs.length)return;

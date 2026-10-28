@@ -1,5 +1,7 @@
 {% extends "base.html" %}{% block c %}{% from "_ic.html" import ic %}
 <h1 class="hh">Cosa vuoi gestire?</h1>
+{% if alert %}<a class="hal" href="/scadenze"><span style="font-size:24px">⚠️</span><span><b>{{ alert|length }} {{ 'scadenza' if alert|length == 1 else 'scadenze' }} da controllare:</b>
+{% for v in alert[:4] %}{{ v.s.voce }} ({% if v.giorni < 0 %}scaduta da {{ -v.giorni }} g{% elif v.giorni == 0 %}scade oggi{% else %}tra {{ v.giorni }} g{% endif %}){{ ', ' if not loop.last }}{% endfor %}{% if alert|length > 4 %} …{% endif %}</span></a>{% endif %}
 <div class="hub">
 <a class="big b-sp" href="/dashboard"><svg class="art" viewBox="0 0 160 120" aria-hidden="true"><defs><linearGradient id="gc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
 <rect x="14" y="16" width="124" height="90" rx="14" fill="#fff"/><rect x="14" y="16" width="124" height="18" rx="14" fill="#e0e7ff"/><rect x="14" y="26" width="124" height="8" fill="#e0e7ff"/>
@@ -21,4 +23,18 @@
 <rect x="14" y="56" width="92" height="50" rx="7" fill="url(#gb)" stroke="#bbf7d0" stroke-width="1.5"/><rect x="21" y="63" width="78" height="36" rx="4" fill="none" stroke="#bbf7d0" stroke-width="1.2" stroke-dasharray="3 2"/>
 <circle cx="60" cy="81" r="15" fill="#16a34a" stroke="#bbf7d0" stroke-width="1.5"/><text x="60" y="88" text-anchor="middle" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="20" fill="#f0fdf4">€</text><circle cx="29" cy="72" r="3.5" fill="#bbf7d0"/><circle cx="91" cy="90" r="3.5" fill="#bbf7d0"/>
 <ellipse cx="130" cy="108" rx="17" ry="6" fill="#b45309"/><ellipse cx="130" cy="103" rx="17" ry="6" fill="#d97706"/><ellipse cx="130" cy="98" rx="17" ry="6" fill="url(#gg)" stroke="#b45309" stroke-width="1"/><text x="130" y="101.500" text-anchor="middle" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="8" fill="#92400e">€</text></svg><b>Stipendi</b><span>Cedolini, controlli e andamento</span></a>
+<a class="big b-ag" href="/agenda"><svg class="art" viewBox="0 0 160 120" aria-hidden="true"><defs><linearGradient id="ga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+<rect x="28" y="16" width="102" height="92" rx="12" fill="#fff"/><rect x="16" y="16" width="102" height="24" rx="12" fill="#7e22ce"/><rect x="16" y="30" width="102" height="10" fill="#7e22ce"/>
+<rect x="38" y="8" width="8" height="18" rx="4" fill="#e9d5ff"/><rect x="88" y="8" width="8" height="18" rx="4" fill="#e9d5ff"/>
+<g fill="#e5e7eb"><rect x="28" y="50" width="14" height="10" rx="3"/><rect x="48" y="50" width="14" height="10" rx="3"/><rect x="68" y="50" width="14" height="10" rx="3"/><rect x="88" y="50" width="14" height="10" rx="3"/><rect x="28" y="66" width="14" height="10" rx="3"/><rect x="68" y="66" width="14" height="10" rx="3"/><rect x="28" y="82" width="14" height="10" rx="3"/><rect x="48" y="82" width="14" height="10" rx="3"/></g>
+<rect x="48" y="66" width="14" height="10" rx="3" fill="#a855f7"/><rect x="88" y="66" width="14" height="10" rx="3" fill="#14b8a6"/>
+</svg><b>Agenda</b><span>Calendario settimanale e mensile, lezioni e impegni</span></a>
+<a class="big b-sc" href="/scadenze"><svg class="art" viewBox="0 0 160 120" aria-hidden="true"><defs><linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+<rect x="22" y="12" width="76" height="96" rx="9" fill="#fff"/><rect x="32" y="24" width="34" height="6" rx="3" fill="#cbd5e1"/><g fill="#e2e8f0"><rect x="32" y="38" width="56" height="5" rx="2.500"/><rect x="32" y="50" width="56" height="5" rx="2.500"/><rect x="32" y="62" width="40" height="5" rx="2.500"/></g>
+<rect x="32" y="82" width="34" height="16" rx="5" fill="#fef3c7"/><text x="49" y="94" text-anchor="middle" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="11" fill="#92400e">€ 185</text>
+<circle cx="104" cy="74" r="32" fill="url(#gs)" stroke="#92400e" stroke-width="3"/><circle cx="104" cy="74" r="25" fill="#fffbeb"/>
+<g stroke="#92400e" stroke-width="2.500" stroke-linecap="round"><path d="M104 52v4M104 92v4M82 74h4M122 74h4"/></g>
+<path d="M104 74V58M104 74l11 7" fill="none" stroke="#92400e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="104" cy="74" r="3.500" fill="#92400e"/>
+<circle cx="132" cy="38" r="12" fill="#e0457b" stroke="#fff" stroke-width="2.500"/><text x="132" y="44" text-anchor="middle" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="16" fill="#fff">!</text></svg><b>Scadenze</b><span>Assicurazioni, bollo e pagamenti da rinnovare</span></a>
+
 </div>{% endblock %}

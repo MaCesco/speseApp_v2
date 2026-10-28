@@ -13,22 +13,33 @@ main{max-width:none}
 .rgt{position:sticky;top:76px}
 .lst{display:flex;flex-direction:column;max-height:calc(100vh - 100px)}
 .scr{overflow-y:auto}}
-.top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.2fr);gap:16px;margin:0 0 16px;align-items:stretch}
+.top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.2fr);gap:12px;margin:0 0 12px;align-items:stretch}
 .top>*{min-width:0}
-.fr{border:1.5px solid color-mix(in srgb,var(--in) 45%,var(--line));border-radius:22px;padding:10px 12px 12px;background:color-mix(in srgb,var(--in) 4%,transparent);display:flex;flex-direction:column}
-.fr h3{margin:0 0 8px 4px;font:800 16px 'DM Sans',sans-serif;letter-spacing:.02em;color:var(--in)}
-.stk{display:grid;gap:12px;flex:1;grid-auto-rows:1fr}
-.stk .stat>.mu:first-child{min-height:0;margin-bottom:6px}
+.fr{border:1.5px solid color-mix(in srgb,var(--in) 45%,var(--line));border-radius:22px;padding:8px 10px 10px;background:color-mix(in srgb,var(--in) 4%,transparent);display:flex;flex-direction:column}
+.fr h3{margin:0 0 6px 4px;font:800 16px 'DM Sans',sans-serif;letter-spacing:.02em;color:var(--in)}
+.stk{display:grid;gap:10px;flex:1;grid-auto-rows:1fr}
+.stk .stat{padding:12px 16px;display:flex;flex-direction:column;justify-content:center}.stk .stat b{display:block;line-height:1.15}
+.vec{display:inline-block;font:400 13px/1.3 'DM Sans',sans-serif;font-style:normal;color:var(--mu);letter-spacing:0;white-space:nowrap;vertical-align:baseline}
+.stk .stat>.mu:first-child{min-height:0;margin-bottom:2px}
 .stat.grande{display:flex;flex-direction:column;justify-content:center;border:2px solid color-mix(in srgb,var(--g) 55%,var(--line));padding:24px}
 .stat.grande.dov{border-color:color-mix(in srgb,var(--r) 60%,var(--line))}
-.stat.grande>.mu:first-child{min-height:0;font-size:22px;font-weight:700;margin-bottom:8px}
+.stat.grande>.mu:first-child{min-height:0;font-size:20px;font-weight:700;margin-bottom:2px}
 .stat.grande b{font-size:clamp(52px,5.4vw,92px);line-height:1.05}
-.stat.grande .sb{font-size:20px;margin-top:8px}
-.top{grid-template-columns:repeat(3,minmax(0,1fr))}.stat.grande{grid-column:1/-1;padding:20px 24px}.stat.grande b{font-size:clamp(48px,4.6vw,80px)}
+.stat.grande .sb{font-size:18px;margin-top:2px}
+.top{grid-template-columns:repeat(3,minmax(0,1fr))}.stat.grande{grid-column:1/-1;padding:14px 24px}.stat.grande b{font-size:clamp(44px,4vw,68px)}
+.lft{container-type:inline-size}
+.stat.grande{border-width:4px}
+@container (min-width:880px){
+.top{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.25fr)}
+.stat.grande{grid-column:auto;padding:20px 24px}
+.stat.grande>.mu:first-child{font-size:clamp(20px,2.2cqw,28px);margin-bottom:6px}
+.stat.grande b{font-size:clamp(44px,6.6cqw,92px);line-height:1.05}
+.stat.grande .sb{font-size:clamp(17px,1.7cqw,22px);margin-top:6px}
+}
 @media(max-width:860px){.top{grid-template-columns:repeat(2,minmax(0,1fr))}.top .fr:nth-child(3){grid-column:1/-1}}
 @media(max-width:560px){.top{grid-template-columns:1fr}.top .fr:nth-child(3){grid-column:auto}}
 </style>
-<a href="/ripetizioni" class="mu">← Tutti gli allievi</a>
+<a href="/ripetizioni" class="mu">← Tutti gli allievi</a>{% if da %}<br><a href="{{ da }}" class="mu">← Agenda</a>{% endif %}
 <h1 style="margin:8px 0 4px">{{ s.nome }}</h1>
 {% if s.note %}<p class="mu" style="margin:0 0 16px">{{ s.note }}</p>{% else %}<div style="height:12px"></div>{% endif %}
 {% if n_pre %}<div class="alert" role="alert"><b>⚠ {{ n_pre }} {{ 'lezione già pagata' if n_pre == 1 else 'lezioni già pagate' }} e ancora da svolgere</b><span>Credito versato in anticipo: {{ '%.0f'|format(credito) }} € ({{ '%.0f'|format(s.tariffa or 0) }} €/h). Le prossime lezioni che aggiungi nasceranno già pagate (verdi) e scaleranno questo numero.</span></div>
@@ -36,7 +47,7 @@ main{max-width:none}
 {% macro hh(x) %}{{ x|ore }} {{ 'ora' if x == 1 else 'ore' }}{% endmacro %}
 {% macro cfe(cur, prev) %}<span class="sb">{{ anno_corr - 1 }}: {{ prev|eur_it }} €{% if prev %} · {% set d = cur - prev %}<span class="{{ 'g' if d >= 0 else 'r' }}">{{ '+' if d >= 0 else '−' }}{{ (d|abs)|eur_it }} € ({{ '+' if d >= 0 else '−' }}{{ ((d|abs) / prev * 100)|round|int }}%)</span>{% endif %}</span>{% endmacro %}
 {% macro cfh(cur, prev) %}<span class="sb">{{ anno_corr - 1 }}: {{ prev|ore_it }} h{% if prev %} · {% set d = cur - prev %}<span class="{{ 'g' if d >= 0 else 'r' }}">{{ '+' if d >= 0 else '−' }}{{ (d|abs)|ore_it }} h ({{ '+' if d >= 0 else '−' }}{{ ((d|abs) / prev * 100)|round|int }}%)</span>{% endif %}</span>{% endmacro %}
-{% macro cfp(lab, cur, prec, per) %}<span class="sb">{{ lab }}: {{ cur|eur_it }} €{% if prec %} · {% set d = cur - prec %}<span class="{{ 'g' if d >= 0 else 'r' }}">{{ '+' if d >= 0 else '−' }}{{ (d|abs)|eur_it }} € ({{ '+' if d >= 0 else '−' }}{{ ((d|abs) / prec * 100)|round|int }}%)</span> rispetto {{ per }}{% endif %}</span>{% endmacro %}
+{% macro cfp(lab, cur, prec, per) %}<span class="sb"{% if prec %} title="Variazione rispetto {{ per }}"{% endif %}>{{ lab }}: {{ cur|eur_it }} €{% if prec %} · {% set d = cur - prec %}<span class="{{ 'g' if d >= 0 else 'r' }}">{{ '+' if d >= 0 else '−' }}{{ (d|abs)|eur_it }} € ({{ '+' if d >= 0 else '−' }}{{ ((d|abs) / prec * 100)|round|int }}%)</span>{% endif %}</span>{% endmacro %}
 <div class="pg">
 <div class="lft">
 <div class="top">
@@ -49,8 +60,8 @@ main{max-width:none}
 <div class="card stat"><span class="mu">Ore totali</span><b>{{ ore_svolte|ore_it }} h</b>{% if ore_prog %}<span class="sb">+ {{ ore_prog|ore_it }} h in programma</span>{% endif %}</div>
 </div></div>
 <div class="fr"><h3>Medie</h3><div class="stk">
-<div class="card stat"><span class="mu">Media mensile</span><b>{{ medie.m|eur_it }} €</b>{{ cfp('Questo mese', medie.m_cur, medie.m_prec, 'al mese scorso') }}</div>
-<div class="card stat"><span class="mu">Media settimanale</span><b>{{ medie.s|eur_it }} €</b>{{ cfp('Questa settimana', medie.s_cur, medie.s_prec, 'alla settimana scorsa') }}</div>
+<div class="card stat"><span class="mu">Media mensile</span><b>{{ medie.m|eur_it }} € <i class="vec">({{ medie.ore_m|ore_it }} h)</i>{% if medie.vecchia %} <i class="vec">(ultima relativa {{ medie.vecchia }})</i>{% endif %}</b>{{ cfp('Totale ' ~ medie.nome_mese, medie.m_cur, medie.m_prec, 'al mese scorso') }}</div>
+<div class="card stat"><span class="mu">Media settimanale</span><b>{{ medie.s|eur_it }} € <i class="vec">({{ medie.ore_s|ore_it }} h)</i>{% if medie.vecchia %} <i class="vec">(ultima relativa {{ medie.vecchia }})</i>{% endif %}</b>{{ cfp('Questa settimana', medie.s_cur, medie.s_prec, 'alla settimana scorsa') }}</div>
 </div></div>
 <div class="card stat grande{{ ' dov' if n }}"><span class="mu">Da incassare</span><b class="{{ 'r' if n else 'g' }}">{{ '%.0f'|format(dovuto) }} €</b>
 {% if debito_ore > 0 %}<span class="sb" style="font-weight:700;color:var(--rt)">Debito di {{ hh(debito_ore) }}</span>{% if credito %}<span class="sb">Credito residuo: {{ '%.2f'|format(credito) }} €</span>{% endif %}
@@ -60,6 +71,8 @@ main{max-width:none}
 <div class="card"><div class="row"><h2 style="margin:0">Andamento delle lezioni</h2><select id="anno" aria-label="Anno" style="max-width:140px"></select></div>
 <p class="mu" id="riep" style="margin:8px 0 0"></p><div class="ch" data-ctl="anno" style="margin-top:8px"><canvas id="cg"></canvas></div>
 <p class="mu" style="font-size:14px;margin:8px 0 0">La media a settimana divide le lezioni di un mese per le sue settimane (il mese in corso conta solo i giorni trascorsi).</p></div>
+<div class="card"><div class="row"><h2 style="margin:0">Lezioni per settimana</h2><select id="mese" aria-label="Mese" style="max-width:200px"></select></div>
+<p class="mu" id="riep2" style="margin:8px 0 0"></p><div class="ch" data-ctl="mese" style="height:230px;margin-top:6px"><canvas id="cs"></canvas></div></div>
 <div class="duo">
 <div class="card"><h2>Registra un pagamento</h2>
 <form class="f" method="post" action="/ripetizioni/{{ s.id }}/incassa"><input type="hidden" name="_t" value="{{ csrf }}">
@@ -99,7 +112,32 @@ main{max-width:none}
  this.dataset.asc=this.dataset.asc?'':'1';this.textContent=this.dataset.asc?'↑ Dalla più vecchia':'↓ Dalla più recente'})</script>
 <script>
 const S={{ serie|tojson }},MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const MESI_L=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const p2=n=>String(n).padStart(2,'0');
+const oggi0=new Date(),OGGI=oggi0.getFullYear()+'-'+p2(oggi0.getMonth()+1)+'-'+p2(oggi0.getDate());
+// ---- colori e blocchi 3D con spigoli arrotondati
+const PAL=['#6366f1','#14b8a6','#f59e0b','#ec4899','#06b6d4','#8b5cf6','#84cc16','#ef4444'];
+const hx=h=>[1,3,5].map(k=>parseInt(h.slice(k,k+2),16));
+const mix=(h,o,q)=>{const a=hx(h),b=hx(o);return 'rgb('+a.map((v,k)=>Math.round(v+(b[k]-v)*q)).join(',')+')'};
+function cubo(c,x,y,w,h,d,col,o){
+ o=o||{};if(h<=0||w<=0)return;
+ const r=Math.min(11,w*.18,h/2),rad=[o.sopra===false?0:r,o.sopra===false?0:r,o.sotto===false?0:r,o.sotto===false?0:r];
+ const sagoma=(dx,dy)=>{c.beginPath();c.roundRect(x+dx,y+dy,w,h,rad)};
+ c.save();
+ c.fillStyle=mix(col,'#000000',.42);for(let k=d;k>=1;k-=.5){sagoma(k,-k);c.fill()}
+ if(o.sopra!==false){c.save();c.beginPath();c.rect(x-2,y-d-2,w+d+4,d+2);c.clip();
+  c.fillStyle=mix(col,'#ffffff',.5);for(let k=d;k>=1;k-=.5){sagoma(k,-k);c.fill()}c.restore()}
+ const g=c.createLinearGradient(0,y,0,y+h);g.addColorStop(0,mix(col,'#ffffff',.18));g.addColorStop(1,mix(col,'#000000',.1));
+ c.fillStyle=g;sagoma(0,0);c.fill();
+ if(o.tratteggio){c.strokeStyle=col;c.lineWidth=2;c.setLineDash([5,4]);sagoma(0,0);c.stroke()}
+ c.restore();
+}
+const trasp='rgba(0,0,0,0)';
+// legenda con il colore vero (le barre del grafico sono trasparenti: le disegna il plugin)
+const legenda=cols=>({labels:{generateLabels:ch=>Chart.defaults.plugins.legend.labels.generateLabels(ch).map(l=>({...l,fillStyle:cols[l.datasetIndex]||l.fillStyle,strokeStyle:cols[l.datasetIndex]||l.strokeStyle}))}});
+
+// ---- grafico 1: andamento annuale
 const anni=[...new Set(S.map(x=>x[0].slice(0,4)))].sort().reverse();
 anno.innerHTML=anni.map(a=>`<option>${a}</option>`).join('');
 let g;
@@ -108,18 +146,66 @@ function disegna(){
  if(g)g.destroy();
  if(!anni.length){riep.textContent='Ancora nessuna lezione.';anno.style.display='none';return}
  const y=+anno.value,oggi=new Date(),corrente=y==oggi.getFullYear();
- const n=Array(12).fill(0);S.forEach(([d])=>{if(+d.slice(0,4)==y)n[+d.slice(5,7)-1]++});
+ const n=Array(12).fill(0),inc=Array(12).fill(0);S.forEach(([d,o,e])=>{if(+d.slice(0,4)==y){n[+d.slice(5,7)-1]++;inc[+d.slice(5,7)-1]+=e||0}});
  const giorni=m=>corrente&&m==oggi.getMonth()?oggi.getDate():new Date(y,m+1,0).getDate();
  const sett=n.map((v,m)=>corrente&&m>oggi.getMonth()?null:+(v/(giorni(m)/7)).toFixed(2));
  const tot=n.reduce((a,b)=>a+b,0),gg=n.reduce((a,v,m)=>a+(v?giorni(m):0),0);
  riep.textContent=tot?`${tot} lezioni nel ${y}, in media ${(tot/(gg/7)).toFixed(1)} a settimana (nei mesi con lezioni)`:`Nessuna lezione nel ${y}`;
+ const col=css('--in');
+ const p3d={id:'p3d',beforeDatasetsDraw(ch){
+  const c=ch.ctx;ch.getDatasetMeta(0).data.forEach((b,i)=>{if(!n[i])return;const w=b.width*.9,d=Math.max(6,Math.min(13,w*.28));
+   cubo(c,b.x-w/2,b.y,w,b.base-b.y,d,col)});
+ }};
  g=new Chart(cg,{type:'bar',data:{labels:MESI,datasets:[
-  {type:'bar',label:'Lezioni al mese',data:n,backgroundColor:css('--in')+'cc',borderRadius:5,maxBarThickness:26,barPercentage:.6,categoryPercentage:.8,order:1,yAxisID:'y'},
+  {type:'bar',label:'Lezioni',data:n,backgroundColor:trasp,borderWidth:0,maxBarThickness:46,barPercentage:.7,categoryPercentage:.85,order:1,yAxisID:'y'},
   {type:'line',label:'Media a settimana',data:sett,borderColor:'#f5a524',backgroundColor:'#f5a524',borderWidth:3,tension:.3,pointRadius:4,order:0,yAxisID:'y2'}]},
-  options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{
-   y:{beginAtZero:true,ticks:{precision:0},title:{display:true,text:'Lezioni al mese'}},
-   y2:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:'Lezioni a settimana'}}}}});
+  plugins:[p3d],
+  options:{maintainAspectRatio:false,layout:{padding:{top:14,right:10}},interaction:{mode:'index',intersect:false},plugins:{legend:legenda([col]),tooltip:{callbacks:{afterBody:it=>['Incassato: '+inc[it[0].dataIndex].toLocaleString('it-IT',{maximumFractionDigits:2})+' €']}}},scales:{
+   y:{beginAtZero:true,grace:'6%',ticks:{precision:0},title:{display:true,text:'Lezioni al mese'}},
+   y2:{position:'right',beginAtZero:true,grace:'6%',grid:{drawOnChartArea:false},title:{display:true,text:'Lezioni a settimana'}}}}});
 }
-function aggiornaGrafici(){disegna()}
-anno.onchange=disegna;disegna();
+
+// ---- grafico 2: lezioni per settimana del mese scelto
+const mesi=[...new Set(S.map(x=>x[0].slice(0,7)).concat([OGGI.slice(0,7)]))].sort().reverse();
+mese.innerHTML=mesi.map(k=>`<option value="${k}">${MESI_L[+k.slice(5)-1]} ${k.slice(0,4)}</option>`).join('');
+mese.value=OGGI.slice(0,7);
+let g2;
+const nsett=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const w=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-w);return Math.ceil(((t-new Date(Date.UTC(t.getUTCFullYear(),0,1)))/864e5+1)/7)};
+function disegna2(){
+ if(g2)g2.destroy();
+ const [y,mm]=mese.value.split(':')[0].split('-').map(Number),m=mm-1;
+ const ultimo=new Date(y,m+1,0).getDate(),pre=`${y}-${p2(m+1)}-`;
+ const lab=[],fatte=[],prog=[];
+ let a=1;
+ while(a<=ultimo){
+  const dow=(new Date(y,m,a).getDay()+6)%7,b=Math.min(ultimo,a+6-dow);
+  let f=0,p=0;S.forEach(([d])=>{if(d.startsWith(pre)){const n=+d.slice(8,10);if(n>=a&&n<=b){if(d<=OGGI)f++;else p++}}});
+  lab.push(['Sett. '+nsett(new Date(y,m,a)),(a==b?a:a+'–'+b)+' '+MESI[m].toLowerCase()]);fatte.push(f);prog.push(p);
+  a=b+1;
+ }
+ const tot=fatte.reduce((s,v)=>s+v,0),pt=prog.reduce((s,v)=>s+v,0);
+ riep2.textContent=tot||pt?`${tot} lezioni svolte${pt?`, ${pt} in programma`:''} a ${MESI_L[m]} ${y}`:`Nessuna lezione a ${MESI_L[m]} ${y}`;
+ // stessa altezza = stesso colore
+ const colore=i=>{const v=fatte[i]+prog[i];return v?PAL[(v-1)%PAL.length]:PAL[0]};
+ const ds=[{label:'Svolte',data:fatte,backgroundColor:trasp,borderWidth:0,categoryPercentage:.96,barPercentage:.92,maxBarThickness:120,stack:'s'}];
+ if(pt)ds.push({label:'In programma',data:prog,backgroundColor:trasp,borderWidth:0,categoryPercentage:.96,barPercentage:.92,maxBarThickness:120,stack:'s'});
+ const f3d={id:'f3d',beforeDatasetsDraw(ch){
+  const c=ch.ctx,d=Math.max(7,Math.min(15,(ch.scales.x.width/lab.length)*.07));
+  lab.forEach((_,i)=>{
+   const col=colore(i);let top=null;
+   ch.data.datasets.forEach((s,di)=>{const v=s.data[i];if(!v)return;const bb=ch.getDatasetMeta(di).data[i],w=bb.width,x=bb.x-w/2,y=Math.min(bb.y,bb.base),h=Math.abs(bb.base-bb.y);
+    const sopra=!ch.data.datasets.slice(di+1).some(z=>z.data[i]),sotto=!ch.data.datasets.slice(0,di).some(z=>z.data[i]);
+    cubo(c,x,y,w,h,d,di?mix(col,'#ffffff',.45):col,{sopra,sotto,tratteggio:di==1});
+    if(sopra)top={x:bb.x+d/2,y:y-d};
+   });
+   if(top){c.save();c.fillStyle=css('--tx');c.font="800 "+(window.innerWidth>=1900?20:16)+"px 'DM Sans',sans-serif";c.textAlign='center';c.textBaseline='bottom';
+    c.fillText(fatte[i]+(prog[i]?' (+'+prog[i]+')':''),top.x,top.y-5);c.restore()}
+   else{const m0=ch.getDatasetMeta(0).data[i];c.save();c.fillStyle=css('--mu');c.font="700 "+(window.innerWidth>=1900?18:14)+"px 'DM Sans',sans-serif";c.textAlign='center';c.textBaseline='bottom';c.fillText('0',m0.x,m0.base-6);c.restore()}
+  });
+ }};
+ g2=new Chart(cs,{type:'bar',data:{labels:lab,datasets:ds},plugins:[f3d],options:{maintainAspectRatio:false,layout:{padding:{top:28,right:16}},interaction:{mode:'index',intersect:false},
+  plugins:{legend:Object.assign({display:!!pt},legenda([PAL[0],mix(PAL[0],'#ffffff',.45)]))},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,grace:'10%',ticks:{precision:0},grid:{color:css('--line')},title:{display:true,text:'Lezioni'}}}}});
+}
+function aggiornaGrafici(){disegna();disegna2()}
+anno.onchange=disegna;mese.onchange=disegna2;disegna();disegna2();
 </script>{% endblock %}
