@@ -17,6 +17,7 @@ main{max-width:none}
 .pc{font-size:.46em;font-weight:400;opacity:.9;margin-left:8px;white-space:nowrap}.un{font-size:.45em;font-style:normal;font-weight:700;opacity:.8;white-space:nowrap}.tfs span{padding:8px 6px;font-size:14px}.tfx{width:100%;border-collapse:collapse}.tfx td{padding:8px 6px;border-bottom:1px solid var(--line)}.tfx td:nth-child(n+2){text-align:right}.tfx td:first-child{font-weight:700}.tfx tr.tot td{font-weight:800;border-bottom:0}
 @media(max-width:760px){.s2{grid-template-columns:1fr}}
 .stud th{padding:8px 6px;text-align:left;color:var(--mu);font-size:13px;font-weight:700;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:1}
+.stud th.so{cursor:pointer;user-select:none}.stud th.so:hover{color:var(--tx)}.stud th.so[data-dir]::after{content:' ▲';font-size:10px}.stud th.so[data-dir='-1']::after{content:' ▼'}
 .stud th:nth-child(n+4),.stud td:nth-child(n+4){text-align:right}
 .stud td:nth-child(n+4){white-space:nowrap}.stud td:nth-child(4),.stud td:nth-child(5){font-weight:700}
 .stud th:nth-child(4),.stud th:nth-child(5),.stud td:nth-child(4),.stud td:nth-child(5){background:color-mix(in srgb,var(--in) 9%,var(--card))}
@@ -96,10 +97,11 @@ n.addEventListener('input',suggerisci);n.addEventListener('change',suggerisci)})
 </div>
 </div>
 <div class="rgt"><div class="card lst">
-<h2>Allievi {% if tutti %}<a class="mu" style="font-size:14px;font-weight:400" href="/ripetizioni">(solo attivi)</a>{% else %}<a class="mu" style="font-size:14px;font-weight:400" href="/ripetizioni?tutti=1">(mostra anche i vecchi)</a>{% endif %}</h2>
+<h2>Allievi <a href="#" id="sord" class="mu" style="font-size:14px;font-weight:400;display:none" title="Torna all'ordine iniziale">↺ ordine predefinito</a> {% if tutti %}<a class="mu" style="font-size:14px;font-weight:400" href="/ripetizioni">(solo attivi)</a>{% else %}<a class="mu" style="font-size:14px;font-weight:400" href="/ripetizioni?tutti=1">(mostra anche i vecchi)</a>{% endif %}</h2>
 <div class="scr"><table class="stud">
-<thead><tr><th>Allievo</th><th>Ultima lezione</th><th>Stato</th><th>Incassato {{ anno_corr }}</th><th>Da incassare</th><th>Totale incassato</th></tr></thead>
-{% for a in visibili %}<tr>
+<thead><tr><th class="so" data-k="nome" data-d="1" title="Ordina per nome">Allievo</th><th class="so" data-k="ult" data-d="-1" title="Ordina per ultima lezione">Ultima lezione</th><th class="so" data-k="n" data-d="-1" title="Ordina per stato: prima chi ha più lezioni da pagare">Stato</th><th class="so" data-k="ia" data-d="-1" title="Ordina per incassato nell'anno">Incassato {{ anno_corr }}</th><th class="so" data-k="dov" data-d="-1" title="Ordina per da incassare">Da incassare</th><th class="so" data-k="tot" data-d="-1" title="Ordina per totale incassato">Totale incassato</th></tr></thead>
+<tbody id="sb">
+{% for a in visibili %}<tr data-i="{{ loop.index0 }}" data-nome="{{ a.s.nome|lower }}" data-ult="{{ a.ultima.toordinal() if a.ultima else 0 }}" data-n="{{ a.n }}" data-ia="{{ '%.2f'|format(a.inc_anno) }}" data-dov="{{ '%.2f'|format(a.dovuto) }}" data-tot="{{ '%.2f'|format(a.incassato) }}">
 <td><a href="/ripetizioni/{{ a.s.id }}" style="color:inherit;font-weight:700">{{ a.s.nome }}</a></td>
 <td class="mu">{{ a.ultima.strftime('%d/%m/%Y') if a.ultima else '–' }}</td>
 <td>{% if a.n %}<span class="pill r">{{ a.n }} da pagare</span>{% else %}<span class="pill g">In regola</span>{% endif %}{% if a.pre %}<div class="mu" style="font-size:13px;margin-top:2px">{{ a.pre }} già pagate da svolgere</div>{% endif %}</td>
@@ -107,8 +109,31 @@ n.addEventListener('input',suggerisci);n.addEventListener('change',suggerisci)})
 <td class="{{ 'r' if a.dovuto else 'mu' }}">{{ '%.0f'|format(a.dovuto) }} €</td>
 <td>{{ '%.0f'|format(a.incassato) }} €</td></tr>
 {% else %}<tr><td class="mu">Nessun allievo: aggiungi una lezione o importa il file Excel.</td></tr>{% endfor %}
-</table></div></div></div>
+</tbody></table></div></div></div>
 </div>
+<script>(function(){
+const tb=document.getElementById('sb'),ths=document.querySelectorAll('.stud th.so'),rs=document.getElementById('sord');
+if(!tb)return;
+const righe=()=>[...tb.querySelectorAll('tr[data-i]')];
+function ordina(k,dir){
+ const r=righe();if(!r.length)return;
+ r.sort((a,b)=>{
+  if(k=='nome')return a.dataset.nome.localeCompare(b.dataset.nome,'it')*dir;
+  const x=+a.dataset[k],y=+b.dataset[k];
+  if(x!==y)return (x-y)*dir;
+  // a parità nello stato: prima chi deve di più
+  if(k=='n'){const d=+b.dataset.dov-+a.dataset.dov;if(d)return d*(dir<0?1:-1)}
+  return a.dataset.nome.localeCompare(b.dataset.nome,'it')});
+ r.forEach(x=>tb.appendChild(x));
+}
+ths.forEach(th=>th.addEventListener('click',()=>{
+ const gia=th.dataset.dir,dir=gia?-gia:+th.dataset.d;
+ ths.forEach(x=>x.removeAttribute('data-dir'));th.dataset.dir=dir;
+ ordina(th.dataset.k,dir);rs.style.display='';
+}));
+rs.addEventListener('click',e=>{e.preventDefault();ths.forEach(x=>x.removeAttribute('data-dir'));
+ righe().sort((a,b)=>a.dataset.i-b.dataset.i).forEach(x=>tb.appendChild(x));rs.style.display='none'});
+})()</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>

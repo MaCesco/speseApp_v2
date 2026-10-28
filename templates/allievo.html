@@ -13,23 +13,49 @@ main{max-width:none}
 .rgt{position:sticky;top:76px}
 .lst{display:flex;flex-direction:column;max-height:calc(100vh - 100px)}
 .scr{overflow-y:auto}}
+.top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.2fr);gap:16px;margin:0 0 16px;align-items:stretch}
+.top>*{min-width:0}
+.fr{border:1.5px solid color-mix(in srgb,var(--in) 45%,var(--line));border-radius:22px;padding:10px 12px 12px;background:color-mix(in srgb,var(--in) 4%,transparent);display:flex;flex-direction:column}
+.fr h3{margin:0 0 8px 4px;font:800 16px 'DM Sans',sans-serif;letter-spacing:.02em;color:var(--in)}
+.stk{display:grid;gap:12px;flex:1;grid-auto-rows:1fr}
+.stk .stat>.mu:first-child{min-height:0;margin-bottom:6px}
+.stat.grande{display:flex;flex-direction:column;justify-content:center;border:2px solid color-mix(in srgb,var(--g) 55%,var(--line));padding:24px}
+.stat.grande.dov{border-color:color-mix(in srgb,var(--r) 60%,var(--line))}
+.stat.grande>.mu:first-child{min-height:0;font-size:22px;font-weight:700;margin-bottom:8px}
+.stat.grande b{font-size:clamp(52px,5.4vw,92px);line-height:1.05}
+.stat.grande .sb{font-size:20px;margin-top:8px}
+.top{grid-template-columns:repeat(3,minmax(0,1fr))}.stat.grande{grid-column:1/-1;padding:20px 24px}.stat.grande b{font-size:clamp(48px,4.6vw,80px)}
+@media(max-width:860px){.top{grid-template-columns:repeat(2,minmax(0,1fr))}.top .fr:nth-child(3){grid-column:1/-1}}
+@media(max-width:560px){.top{grid-template-columns:1fr}.top .fr:nth-child(3){grid-column:auto}}
 </style>
 <a href="/ripetizioni" class="mu">← Tutti gli allievi</a>
 <h1 style="margin:8px 0 4px">{{ s.nome }}</h1>
 {% if s.note %}<p class="mu" style="margin:0 0 16px">{{ s.note }}</p>{% else %}<div style="height:12px"></div>{% endif %}
 {% if n_pre %}<div class="alert" role="alert"><b>⚠ {{ n_pre }} {{ 'lezione già pagata' if n_pre == 1 else 'lezioni già pagate' }} e ancora da svolgere</b><span>Credito versato in anticipo: {{ '%.0f'|format(credito) }} € ({{ '%.0f'|format(s.tariffa or 0) }} €/h). Le prossime lezioni che aggiungi nasceranno già pagate (verdi) e scaleranno questo numero.</span></div>
 {% elif credito > 0 %}<p class="mu" style="margin:0 0 12px">Credito residuo: <b>{{ '%.2f'|format(credito) }} €</b> (non basta per una lezione intera)</p>{% endif %}
+{% macro hh(x) %}{{ x|ore }} {{ 'ora' if x == 1 else 'ore' }}{% endmacro %}
+{% macro cfe(cur, prev) %}<span class="sb">{{ anno_corr - 1 }}: {{ prev|eur_it }} €{% if prev %} · {% set d = cur - prev %}<span class="{{ 'g' if d >= 0 else 'r' }}">{{ '+' if d >= 0 else '−' }}{{ (d|abs)|eur_it }} € ({{ '+' if d >= 0 else '−' }}{{ ((d|abs) / prev * 100)|round|int }}%)</span>{% endif %}</span>{% endmacro %}
+{% macro cfh(cur, prev) %}<span class="sb">{{ anno_corr - 1 }}: {{ prev|ore_it }} h{% if prev %} · {% set d = cur - prev %}<span class="{{ 'g' if d >= 0 else 'r' }}">{{ '+' if d >= 0 else '−' }}{{ (d|abs)|ore_it }} h ({{ '+' if d >= 0 else '−' }}{{ ((d|abs) / prev * 100)|round|int }}%)</span>{% endif %}</span>{% endmacro %}
+{% macro cfp(lab, cur, prec, per) %}<span class="sb">{{ lab }}: {{ cur|eur_it }} €{% if prec %} · {% set d = cur - prec %}<span class="{{ 'g' if d >= 0 else 'r' }}">{{ '+' if d >= 0 else '−' }}{{ (d|abs)|eur_it }} € ({{ '+' if d >= 0 else '−' }}{{ ((d|abs) / prec * 100)|round|int }}%)</span> rispetto {{ per }}{% endif %}</span>{% endmacro %}
 <div class="pg">
 <div class="lft">
-<div class="stats">
-{% macro hh(x) %}{{ x|ore }} {{ 'ora' if x == 1 else 'ore' }}{% endmacro %}
-<div class="card stat"><span class="mu">Ore svolte</span><b>{{ ore_svolte|ore }}</b>{% if ore_prog %}<span class="sb">+ {{ ore_prog|ore }} in programma</span>{% endif %}</div>
-<div class="card stat"><span class="mu">Totale incassato finora</span><b class="g">{{ ('%.0f' if incassato == incassato|round(0) else '%.2f')|format(incassato) }} €</b>{% if credito %}<span class="sb">di cui {{ ('%.0f' if credito == credito|round(0) else '%.2f')|format(credito) }} € di credito</span>{% endif %}</div>
-<div class="card stat"><span class="mu">Da incassare</span><b class="{{ 'r' if n else 'g' }}">{{ '%.0f'|format(dovuto) }} €</b></div>
-<div class="card stat"><span class="mu">Situazione</span>
-{% if debito_ore > 0 %}<b class="r sit">Debito di {{ hh(debito_ore) }}</b>{% if credito %}<span class="sb">Credito residuo: {{ '%.2f'|format(credito) }} €</span>{% endif %}
-{% elif credito > 0 %}<b class="g sit">Credito di {% if credito_ore %}{{ hh(credito_ore) }}{% else %}{{ '%.2f'|format(credito) }} €{% endif %}</b>
-{% else %}<b class="sit">In regola</b>{% endif %}</div>
+<div class="top">
+<div class="fr"><h3>{{ anno_corr }}</h3><div class="stk">
+<div class="card stat"><span class="mu">Incassato nel {{ anno_corr }}</span><b class="g">{{ inc_a|eur_it }} €</b>{{ cfe(inc_a, inc_p) }}</div>
+<div class="card stat"><span class="mu">Ore svolte nel {{ anno_corr }}</span><b>{{ ore_a|ore_it }} h</b>{{ cfh(ore_a, ore_p) }}</div>
+</div></div>
+<div class="fr"><h3>Totale negli anni</h3><div class="stk">
+<div class="card stat"><span class="mu">Fatturato totale negli anni</span><b>{{ fatturato_tot|eur_it }} €</b></div>
+<div class="card stat"><span class="mu">Ore totali</span><b>{{ ore_svolte|ore_it }} h</b>{% if ore_prog %}<span class="sb">+ {{ ore_prog|ore_it }} h in programma</span>{% endif %}</div>
+</div></div>
+<div class="fr"><h3>Medie</h3><div class="stk">
+<div class="card stat"><span class="mu">Media mensile</span><b>{{ medie.m|eur_it }} €</b>{{ cfp('Questo mese', medie.m_cur, medie.m_prec, 'al mese scorso') }}</div>
+<div class="card stat"><span class="mu">Media settimanale</span><b>{{ medie.s|eur_it }} €</b>{{ cfp('Questa settimana', medie.s_cur, medie.s_prec, 'alla settimana scorsa') }}</div>
+</div></div>
+<div class="card stat grande{{ ' dov' if n }}"><span class="mu">Da incassare</span><b class="{{ 'r' if n else 'g' }}">{{ '%.0f'|format(dovuto) }} €</b>
+{% if debito_ore > 0 %}<span class="sb" style="font-weight:700;color:var(--rt)">Debito di {{ hh(debito_ore) }}</span>{% if credito %}<span class="sb">Credito residuo: {{ '%.2f'|format(credito) }} €</span>{% endif %}
+{% elif credito > 0 %}<span class="sb" style="font-weight:700;color:var(--gt)">Credito di {% if credito_ore %}{{ hh(credito_ore) }}{% else %}{{ '%.2f'|format(credito) }} €{% endif %}</span>
+{% else %}<span class="sb">In regola</span>{% endif %}</div>
 </div>
 <div class="card"><div class="row"><h2 style="margin:0">Andamento delle lezioni</h2><select id="anno" aria-label="Anno" style="max-width:140px"></select></div>
 <p class="mu" id="riep" style="margin:8px 0 0"></p><div class="ch" data-ctl="anno" style="margin-top:8px"><canvas id="cg"></canvas></div>
@@ -52,8 +78,8 @@ main{max-width:none}
 <form method="post" action="/ripetizioni/{{ s.id }}/elimina" onsubmit="return confirm('Eliminare l\'allievo e tutte le sue lezioni?')" style="margin-top:10px"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Elimina allievo</button></form></div>
 </div>
 </div>
-<div class="rgt"><div class="card lst"><h2>Lezioni <span class="mu" style="font-size:14px;font-weight:400">({{ n_tot }})</span></h2>
-<div class="scr"><table class="lez">
+<div class="rgt"><div class="card lst"><div class="row" style="margin-bottom:8px"><h2 style="margin:0;flex:1 1 auto">Lezioni <span class="mu" style="font-size:14px;font-weight:400">({{ n_tot }})</span></h2><button type="button" class="x" id="inv" style="flex:0 0 auto;width:auto" title="Inverte l'ordine della lista">↓ Dalla più recente</button></div>
+<div class="scr"><table class="lez"><tbody id="lb">
 {% for l in lez %}<tr class="{{ 'ok' if l.pagata else 'no' }}">
 <td>{{ l.data.strftime('%d/%m/%Y') }}<div>{% if l.pagata %}<span class="pill g">Pagata</span>{% else %}<span class="pill r">Da pagare</span>{% endif %}</div></td>
 <td class="mu">{{ l.ora_inizio }}{% if l.ora_fine %}–{{ l.ora_fine }}{% endif %}<br>{{ l.ore|round(2) }} h</td>
@@ -63,11 +89,14 @@ main{max-width:none}
 <a class="x" href="/modifica-lezione/{{ l.id }}" style="display:inline-block;border-radius:12px;text-decoration:none;padding:5px 12px;margin-left:4px">Modifica</a>
 <form method="post" action="/lezione/{{ l.id }}/elimina" onsubmit="return confirm('Eliminare questa lezione?')"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x" aria-label="Elimina">✕</button></form></td>
 </tr>{% else %}<tr><td class="mu">Nessuna lezione.</td></tr>{% endfor %}
-</table></div></div></div>
+</tbody></table></div></div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script>document.getElementById('inv').addEventListener('click',function(){
+ const tb=document.getElementById('lb'),r=[...tb.children].reverse();r.forEach(x=>tb.appendChild(x));
+ this.dataset.asc=this.dataset.asc?'':'1';this.textContent=this.dataset.asc?'↑ Dalla più vecchia':'↓ Dalla più recente'})</script>
 <script>
 const S={{ serie|tojson }},MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();

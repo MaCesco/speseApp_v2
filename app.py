@@ -814,7 +814,32 @@ def allievo(id):
     n = sum(1 for l in lez if not l.pagata)
     oggi = date.today()
     credito = s.credito or 0
-    return render_template("allievo.html", s=s, lez=lez, n=n, n_tot=len(lez),
+    val = lambda l: l.ore * (l.tariffa or s.tariffa or 0)
+    yr = oggi.year
+    svolte = [l for l in lez if l.data <= oggi]
+    # fatturato (ore x tariffa, pagato o no) per mese e per settimana, dalle lezioni gia' svolte
+    import calendar
+    per_mese, per_sett = {}, {}
+    for l in svolte:
+        per_mese[(l.data.year, l.data.month)] = per_mese.get((l.data.year, l.data.month), 0) + val(l)
+        lun = l.data - timedelta(days=l.data.weekday())
+        per_sett[lun] = per_sett.get(lun, 0) + val(l)
+    cur_m = (oggi.year, oggi.month)
+    prec_m = (oggi.year, oggi.month - 1) if oggi.month > 1 else (oggi.year - 1, 12)
+    ms = [k for k in per_mese if k != cur_m] or list(per_mese)
+    somma_m = sum(per_mese[k] for k in ms)
+    media_m = somma_m / len(ms) if ms else 0
+    media_s = somma_m / (sum(calendar.monthrange(*k)[1] for k in ms) / 7) if ms else 0
+    lun0 = oggi - timedelta(days=oggi.weekday())
+    medie = dict(m=media_m, s=media_s, m_cur=per_mese.get(cur_m, 0), m_prec=per_mese.get(prec_m, 0),
+                 s_cur=per_sett.get(lun0, 0), s_prec=per_sett.get(lun0 - timedelta(days=7), 0))
+    return render_template("allievo.html", anno_corr=yr, medie=medie,
+                           inc_a=sum(val(l) for l in lez if l.pagata and l.data.year == yr),
+                           inc_p=sum(val(l) for l in lez if l.pagata and l.data.year == yr - 1),
+                           ore_a=sum(l.ore for l in svolte if l.data.year == yr),
+                           ore_p=sum(l.ore for l in svolte if l.data.year == yr - 1),
+                           fatturato_tot=sum(val(l) for l in svolte),
+                           s=s, lez=lez, n=n, n_tot=len(lez),
                            ore_svolte=sum(l.ore for l in lez if l.data <= oggi), ore_prog=sum(l.ore for l in lez if l.data > oggi),
                            dovuto=sum(l.ore * (l.tariffa or s.tariffa or 0) for l in lez if not l.pagata),
                            # totale incassato: lezioni pagate (anche future) + credito versato in anticipo
