@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block c %}
 {% set nxt = request.full_path.rstrip('?') %}
-{% macro sj(s) %}{{ {'id': s.id, 'voce': s.voce, 'importo': s.importo, 'dp': s.data_pagamento.isoformat() if s.data_pagamento else '', 'mesi': s.validita_mesi, 'sc': s.scadenza.isoformat() if s.scadenza else '', 'pre': s.preavviso or 30, 'nota': s.nota or ''}|tojson }}{% endmacro %}
+{% macro sj(s) %}{{ {'id': s.id, 'voce': s.voce, 'importo': s.importo, 'dp': s.data_pagamento.isoformat() if s.data_pagamento else '', 'mesi': s.validita_mesi, 'sc': s.scadenza.isoformat() if s.scadenza else '', 'pre': s.preavviso or 30, 'nota': s.nota or '', 'tipo': s.tipo or 'scad'}|tojson }}{% endmacro %}
 {% macro stato(v) %}{% if v.stato == 'scaduta' %}<span class="pill r">Scaduta da {{ -v.giorni }} g</span>{% elif v.stato == 'urgente' %}<span class="pill r">{% if v.giorni == 0 %}Scade oggi{% else %}Scade tra {{ v.giorni }} g{% endif %}</span>{% elif v.stato == 'presto' %}<span class="pill am">Scade tra {{ v.giorni }} g</span>{% elif v.stato == 'ok' %}<span class="pill g">In regola · {{ v.giorni }} g</span>{% elif v.stato == 'chiusa' %}<span class="pill mt">Non si rinnova</span>{% else %}<span class="pill mt">Senza scadenza</span>{% endif %}{% endmacro %}
 <style>
 :root{--am:#b45309;--amb:#d97706;--hh:60px;--fs:12.5px;--dh:52px}
@@ -38,7 +38,7 @@ button.pr{width:auto;padding:10px 18px;border-radius:12px;min-height:44px}
 .ev.ok{--c:var(--g);background:color-mix(in srgb,var(--g) 20%,var(--card))}
 .ev.no{--c:var(--r);background:color-mix(in srgb,var(--r) 20%,var(--card))}
 .ev.imp{--c:var(--ic,var(--in));background:color-mix(in srgb,var(--c) 22%,var(--card))}
-.ev.scad{--c:var(--amb);background:color-mix(in srgb,var(--amb) 22%,var(--card))}
+.ev.scad{--c:var(--r);background:color-mix(in srgb,var(--r) 22%,var(--card))}
 .ev b{display:block}.ev span{color:var(--mu)}
 .sen .ev{position:static;display:block;margin-top:4px}
 .ev.n2{font-size:calc(var(--fs)*.92);padding:3px 5px}.ev.n2 span,.ev.n3 span,.ev.n4 span{display:block}.ev.n3{font-size:calc(var(--fs)*.84);padding:2px 4px;line-height:1.2}.ev.n4{font-size:calc(var(--fs)*.76);padding:2px 3px;line-height:1.15}
@@ -57,7 +57,7 @@ button.pr{width:auto;padding:10px 18px;border-radius:12px;min-height:44px}
 .chip.ok{--c:var(--g);background:color-mix(in srgb,var(--g) 18%,var(--card))}
 .chip.no{--c:var(--r);background:color-mix(in srgb,var(--r) 18%,var(--card))}
 .chip.imp{--c:var(--ic,var(--in));background:color-mix(in srgb,var(--c) 20%,var(--card))}
-.chip.scad{--c:var(--amb);background:color-mix(in srgb,var(--amb) 22%,var(--card))}
+.chip.scad{--c:var(--r);background:color-mix(in srgb,var(--r) 22%,var(--card))}
 .more{font-size:12px;color:var(--mu);text-decoration:none;padding-left:4px}
 /* scadenze */
 .sg{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
@@ -68,6 +68,8 @@ button.pr{width:auto;padding:10px 18px;border-radius:12px;min-height:44px}
 .sc dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:4px 0;font-size:14.5px}.sc dt{color:var(--mu)}.sc dd{margin:0;font-weight:700;text-align:right}
 .sc .bt{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .sc .bt button,.sc .bt form button{width:auto;padding:6px 12px;min-height:40px;font-size:14px;border-radius:10px}
+.tb .pr.sec{background:var(--bg);color:var(--tx);border:1px solid var(--line)}
+.nt td{vertical-align:middle}.nt td:nth-child(3){text-align:right;font-weight:700;white-space:nowrap}
 .sc .bt .x{background:var(--bg);color:var(--mu)}
 .sc details{margin-top:4px;font-size:14px}.sc summary{cursor:pointer;color:var(--mu)}
 .sc details table td{padding:6px 4px;font-size:13.5px}.sc details table td:nth-child(3){text-align:right}
@@ -108,7 +110,7 @@ dialog h2{margin:0 0 14px}
 <div class="cb" style="height:calc(var(--hh) * {{ h1 - h0 }})">
 {% for e in g.ev %}<a class="ev {{ e.cls }}{% if e.ncols > 1 %} n{{ [e.ncols, 4]|min }}{% endif %}" href="{{ e.href }}{{ '?da=' ~ (nxt|urlencode) if e.kind == 'lez' }}"{% if e.raw %} data-imp='{{ e.raw|tojson }}'{% endif %} title="{{ e.titolo }} {{ e.ini }}–{{ e.fine }} {{ e.sub }}" style="{% if e.colore %}--ic:{{ e.colore }};{% endif %}top:calc(var(--hh) * {{ e.start - h0 * 60 }} / 60);height:calc(var(--hh) * {{ [e.end - e.start, 30]|max }} / 60){% if e.ncols > 1 %};left:calc(3px + (100% - 6px) * {{ e.col }} / {{ e.ncols }});width:calc((100% - 6px) / {{ e.ncols }} - 2px);right:auto{% endif %}"><b>{{ e.titolo }}</b><span>{{ e.ini }}{% if e.fine %}–{{ e.fine }}{% endif %}{% if e.ncols < 3 and e.sub %} {{ e.sub }}{% endif %}</span></a>{% endfor %}
 </div>
-{% if g.senza %}<div class="sen">{% for e in g.senza %}<a class="ev {{ e.cls }}" href="{{ e.href }}{{ '?da=' ~ (nxt|urlencode) if e.kind == 'lez' }}"{% if e.colore %} style="--ic:{{ e.colore }}"{% endif %}{% if e.raw %} data-imp='{{ e.raw|tojson }}'{% endif %}><b>{{ e.titolo }}</b><span>{% if e.kind == 'scad' %}{{ e.sub }}{% elif e.ini %}{{ e.ini }}{% else %}giornata intera{% endif %}{% if e.kind == 'imp' and e.sub %} · {{ e.sub }}{% endif %}</span></a>{% endfor %}</div>{% endif %}
+{% if g.senza %}<div class="sen">{% for e in g.senza %}<a class="ev {{ e.cls }}" href="{{ e.href }}{{ '?da=' ~ (nxt|urlencode) if e.kind == 'lez' }}"{% if e.colore %} style="--ic:{{ e.colore }}"{% endif %}{% if e.raw %} data-imp='{{ e.raw|tojson }}'{% endif %}><b>{{ e.titolo }}</b><span>{% if e.kind == 'scad' %}{{ e.sub }}{% elif e.ini %}{{ e.ini }}{% elif e.kind == 'lez' %}orario non indicato{% else %}giornata intera{% endif %}{% if e.kind == 'imp' and e.sub %} · {{ e.sub }}{% endif %}</span></a>{% endfor %}</div>{% endif %}
 </div>{% endfor %}
 </div>
 
@@ -123,7 +125,7 @@ dialog h2{margin:0 0 14px}
 </div>
 
 {% else %}
-<div class="tb"><h2>Scadenze e pagamenti</h2><span class="sp"></span><button type="button" class="pr" id="nuovaScad">+ Nuovo pagamento / scadenza</button></div>
+<div class="tb"><h2>Scadenze e pagamenti</h2><span class="sp"></span><button type="button" class="pr sec" id="nuovaNota">+ Inserisci nota/pagamento</button><button type="button" class="pr" id="nuovaScad">+ Scadenza</button></div>
 <p class="leg">Ogni voce (assicurazione, bollo, …) mostra l'ultimo pagamento e quando scade. Un avviso compare da 30 giorni prima. Quando rinnovi, usa «Rinnova»: il vecchio pagamento resta nello storico.
 {% if per_anno %} · Pagato: {% for a, tot in per_anno %}<b style="color:var(--tx)">{{ a }}</b> {{ tot|eur_it }} €{{ ' · ' if not loop.last }}{% endfor %}{% endif %}</p>
 {% if voci %}<div class="sg">
@@ -143,6 +145,12 @@ dialog h2{margin:0 0 14px}
 </table></details>{% endif %}
 </div>{% endfor %}
 </div>{% else %}<div class="card vuoto">Nessuna scadenza ancora.<br>Aggiungi per esempio «Assicurazione auto» con importo, data di pagamento e durata: l'app calcola quando scade e ti avvisa un mese prima.</div>{% endif %}
+<h2 style="margin:26px 0 10px">Note e pagamenti</h2>
+{% if note %}<div class="card" style="padding:8px 16px"><table class="nt">
+{% for h in note %}<tr data-s='{{ sj(h) }}'><td>{{ h.data_pagamento|data_it }}</td><td><b>{{ h.voce }}</b>{% if h.nota %}<div class="mu" style="font-size:14px">{{ h.nota }}</div>{% endif %}</td><td>{% if h.importo is not none %}{{ h.importo|eur_it }} €{% endif %}</td>
+<td style="text-align:right;white-space:nowrap"><button type="button" class="x mini" data-az="modifica" style="width:auto;padding:4px 12px;min-height:36px">Modifica</button>
+<form method="post" action="/agenda/scadenza/{{ h.id }}/elimina" style="display:inline" onsubmit="return confirm('Eliminare questa nota?')"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><button class="x mini" style="width:auto;padding:4px 12px;min-height:36px">✕</button></form></td></tr>{% endfor %}
+</table></div>{% else %}<div class="card vuoto">Nessuna nota. Con «Inserisci nota/pagamento» puoi annotare un pagamento o un appunto senza scadenza.</div>{% endif %}
 {% endif %}
 
 <dialog id="dImp"><form method="post" action="/agenda/impegno/salva" class="df">
@@ -160,12 +168,12 @@ dialog h2{margin:0 0 14px}
 
 <dialog id="dScad"><form method="post" action="/agenda/scadenza/salva" class="df">
 <h2 id="tScad">Nuovo pagamento / scadenza</h2>
-<input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><input type="hidden" name="id">
-<label>Di cosa si tratta<input name="voce" required maxlength="120" list="sugg" placeholder="Es. Assicurazione auto"></label>
+<input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><input type="hidden" name="id"><input type="hidden" name="tipo" value="scad">
+<label><span id="lVoce">Di cosa si tratta</span><input name="voce" required maxlength="120" list="sugg" placeholder="Es. Assicurazione auto"></label>
 <datalist id="sugg">{% for s in (suggerimenti or []) %}<option value="{{ s }}">{% endfor %}</datalist>
 <div class="r2"><label>Importo pagato (€)<input name="importo" inputmode="decimal" placeholder="0,00"></label><label>Data pagamento<input type="date" name="data_pagamento"></label></div>
-<div class="r2"><label>Validità<input name="validita" inputmode="decimal" placeholder="Es. 12"></label><label>&nbsp;<select name="unita"><option value="mesi">mesi</option><option value="anni">anni</option></select></label></div>
-<div class="r2"><label>Scade il<input type="date" name="scadenza"></label><label>Avviso giorni prima<input name="preavviso" type="number" min="30" max="365" value="30"></label></div>
+<div id="soloSc"><div class="r2"><label>Validità<input name="validita" inputmode="decimal" placeholder="Es. 12"></label><label>&nbsp;<select name="unita"><option value="mesi">mesi</option><option value="anni">anni</option></select></label></div>
+<div class="r2"><label>Scade il<input type="date" name="scadenza"></label><label>Avviso giorni prima<input name="preavviso" type="number" min="30" max="365" value="30"></label></div></div>
 <label>Note<textarea name="nota" rows="2" maxlength="500"></textarea></label>
 <div class="bb"><button type="button" class="x" data-chiudi>Annulla</button><button type="submit">Salva</button></div>
 </form></dialog>
@@ -199,8 +207,10 @@ function calcola(){
 }
 f.scadenza.addEventListener('input',()=>{manuale=true});
 ['data_pagamento','validita','unita'].forEach(n=>f[n].addEventListener('input',()=>{if(n!='unita')manuale=false;calcola()}));
-function scad(o,titolo){
- f.reset();manuale=false;
+function scad(o,titolo,tipo){
+ tipo=tipo||o.tipo||'scad';f.reset();manuale=false;f.tipo.value=tipo;
+ const nota=tipo=='nota';$('#soloSc').hidden=nota;$('#lVoce').textContent=nota?'Descrizione':'Di cosa si tratta';
+ f.querySelector('input[name=data_pagamento]').closest('label').firstChild.textContent=nota?'Data ':'Data pagamento';
  f.id.value=o.id||'';f.voce.value=o.voce||'';f.importo.value=o.importo!=null?String(o.importo).replace('.',','):'';
  f.data_pagamento.value=o.dp||'';
  const m=o.mesi||'';if(m&&m%12==0){f.validita.value=m/12;f.unita.value='anni'}else{f.validita.value=m;f.unita.value='mesi'}
@@ -208,10 +218,11 @@ function scad(o,titolo){
  $('#tScad').textContent=titolo;if(o.sc&&o.id)manuale=true;
  dS.showModal();(o.id||o.rinnovo?f.importo:f.voce).focus();
 }
-const nuova=$('#nuovaScad');if(nuova)nuova.onclick=()=>scad({},'Nuovo pagamento / scadenza');
+const nuova=$('#nuovaScad');if(nuova)nuova.onclick=()=>scad({},'Nuova scadenza','scad');
+const nn=$('#nuovaNota');if(nn)nn.onclick=()=>scad({dp:iso(new Date())},'Nuova nota / pagamento','nota');
 document.querySelectorAll('[data-az]').forEach(b=>b.addEventListener('click',()=>{
  const el=b.closest('[data-s]'),o=JSON.parse(el.dataset.s);
- if(b.dataset.az=='modifica')scad(o,'Modifica pagamento');
+ if(b.dataset.az=='modifica')scad(o,o.tipo=='nota'?'Modifica nota / pagamento':'Modifica pagamento');
  else{ // rinnovo: stessa voce, nuovo pagamento da oggi
   const r={voce:o.voce,importo:o.importo,mesi:o.mesi,pre:o.pre,nota:o.nota,dp:iso(new Date()),rinnovo:1};
   scad(r,'Rinnova: '+o.voce);calcola();

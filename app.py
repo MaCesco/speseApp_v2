@@ -196,6 +196,7 @@ class Scadenza(db.Model):
     preavviso = db.Column(db.Integer, default=30)
     nota = db.Column(db.String(500), default="")
     chiusa = db.Column(db.Boolean, default=False, nullable=False)  # voce non piu' da rinnovare
+    tipo = db.Column(db.String(10), default="scad")  # scad = ha una scadenza | nota = solo nota/pagamento
 
 
 
@@ -203,7 +204,7 @@ def migra():
     """Aggiunge le colonne nuove alle tabelle gia' esistenti (database online)."""
     from sqlalchemy import inspect, text
     insp = inspect(db.engine)
-    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER"), ("impegno", "colore", "VARCHAR(10)")):
+    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER"), ("impegno", "colore", "VARCHAR(10)"), ("scadenza", "tipo", "VARCHAR(10)")):
         if col not in [c["name"] for c in insp.get_columns(tab)]:
             db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN {col} {tipo}"))
     if "contenuto" not in [c["name"] for c in insp.get_columns("file_bilancio")]:
@@ -1942,6 +1943,8 @@ def voci_scadenze(uid):
     """Raggruppa i pagamenti per voce: per ognuna l'ultimo pagamento (quello che conta) e lo storico."""
     gruppi = {}
     for s in Scadenza.query.filter_by(user_id=uid).all():
+        if s.tipo == "nota":
+            continue
         gruppi.setdefault(s.voce.strip().lower(), []).append(s)
     oggi, voci = date.today(), []
     for lista in gruppi.values():
@@ -2019,8 +2022,8 @@ def eventi_periodo(uid, da, a):
     for v in voci_scadenze(uid):
         s = v["s"]
         if s.scadenza and da <= s.scadenza <= a and not s.chiusa:
-            put(s.scadenza, dict(kind="scad", titolo=s.voce, ini="", fine="", href="/agenda?vista=scad", cls="scad",
-                                 sub="scadenza" + (f" · {s.importo:g} €" if s.importo else "")))
+            put(s.scadenza, dict(kind="scad", titolo=f"SCADENZA {s.voce}", ini="", fine="", href="/scadenze", cls="scad",
+                                 sub=(f"{s.importo:g} €".replace(".", ",") if s.importo else "")))
     for d, lst in out.items():
         for e in lst:
             try:
@@ -2103,7 +2106,8 @@ def _agenda(vista):
         for s in tutti:
             if s.data_pagamento and s.importo:
                 per_anno[s.data_pagamento.year] = per_anno.get(s.data_pagamento.year, 0) + s.importo
-        ctxd.update(voci=voci, per_anno=sorted(per_anno.items(), reverse=True), suggerimenti=SUGGERIMENTI_SCADENZE)
+        note = sorted([s for s in tutti if s.tipo == "nota"], key=lambda s: (s.data_pagamento or date.min, s.id), reverse=True)
+        ctxd.update(voci=voci, note=note, per_anno=sorted(per_anno.items(), reverse=True), suggerimenti=SUGGERIMENTI_SCADENZE)
     return render_template("agenda.html", **ctxd)
 
 
@@ -2158,6 +2162,9 @@ def scadenza_salva():
     val = _num(request.form.get("validita", "").strip().replace(",", "."))
     mesi = int(val * (12 if request.form.get("unita") == "anni" else 1)) if val and 0 < val <= 1200 else None
     sc = _data(request.form.get("scadenza"))
+    nota_sola = request.form.get("tipo") == "nota"
+    if nota_sola:  # solo nota/pagamento: nessuna validita' ne' scadenza
+        mesi, sc = None, None
     if not sc and dp and mesi:
         sc = aggiungi_mesi(dp, mesi) - timedelta(days=1)  # scade il giorno prima dell'anniversario
     if not mesi and dp and sc and sc > dp:
@@ -2173,7 +2180,13 @@ def scadenza_salva():
     s.preavviso = int(pre) if pre and 30 <= pre <= 365 else 30
     s.nota = request.form.get("nota", "").strip()[:500]
     s.chiusa = False
+    nuova = s.id is None
+    s.tipo = "nota" if nota_sola else "scad"
     db.session.commit()
+    if nota_sola:
+        flash("Nota inserita." if nuova else "Nota aggiornata.")
+    else:
+        flash(("Scadenza inserita: " if nuova else "Scadenza aggiornata: ") + f"{s.voce}" + (f", scade il {_it(s.scadenza)}." if s.scadenza else "."))
     return _torna()
 
 
