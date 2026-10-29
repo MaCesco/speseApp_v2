@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block c %}
 {% set nxt = request.full_path.rstrip('?') %}
-{% macro sj(s) %}{{ {'id': s.id, 'voce': s.voce, 'importo': s.importo, 'dp': s.data_pagamento.isoformat() if s.data_pagamento else '', 'mesi': s.validita_mesi, 'sc': s.scadenza.isoformat() if s.scadenza else '', 'pre': s.preavviso or 30, 'nota': s.nota or '', 'tipo': s.tipo or 'scad'}|tojson }}{% endmacro %}
+{% macro sj(s) %}{{ {'id': s.id, 'voce': s.voce, 'importo': s.importo, 'dp': s.data_pagamento.isoformat() if s.data_pagamento else '', 'mesi': s.validita_mesi, 'sc': s.scadenza.isoformat() if s.scadenza else '', 'pre': s.preavviso or 30, 'nota': s.nota or '', 'tipo': s.tipo or 'scad', 'colore': s.colore or ''}|tojson }}{% endmacro %}
 {% macro stato(v) %}{% if v.stato == 'scaduta' %}<span class="pill r">Scaduta da {{ -v.giorni }} g</span>{% elif v.stato == 'urgente' %}<span class="pill r">{% if v.giorni == 0 %}Scade oggi{% else %}Scade tra {{ v.giorni }} g{% endif %}</span>{% elif v.stato == 'presto' %}<span class="pill am">Scade tra {{ v.giorni }} g</span>{% elif v.stato == 'ok' %}<span class="pill g">In regola · {{ v.giorni }} g</span>{% elif v.stato == 'chiusa' %}<span class="pill mt">Non si rinnova</span>{% else %}<span class="pill mt">Senza scadenza</span>{% endif %}{% endmacro %}
 <style>
 :root{--am:#b45309;--amb:#d97706;--hh:60px;--fs:12.5px;--dh:52px}
@@ -89,6 +89,53 @@ dialog h2{margin:0 0 14px}
 .df .bb button{width:auto;padding:10px 20px;min-height:44px;border-radius:12px}.df .bb .x{background:var(--bg);color:var(--mu)}.df .bb .dl{background:var(--r);color:#fff;margin-right:auto}
 @media(max-width:900px){.cal{display:block}.hrs{display:none}.dayc{margin-bottom:14px}.cb{height:auto!important;background-image:none;padding:4px;min-height:34px}.cb .ev{position:static!important;display:block;height:auto!important;margin:4px;left:auto!important;width:auto!important;font-size:13px!important;padding:3px 7px!important}.dh{height:auto;min-height:40px;flex-direction:row;gap:8px}}
 @media(max-width:700px){.mg{gap:3px}.md{min-height:64px;padding:3px}.chip{font-size:0;height:8px;width:8px;padding:0;border-radius:50%;display:inline-block;border-left:0;background:var(--c)!important;margin:1px}.md .add{display:none}.more{display:none}.md .n{font-size:13px}.df .r2{grid-template-columns:1fr}.md .evs{display:flex;flex-wrap:wrap}}
+/* ===== scadenze: grafica ===== */
+.itm[hidden]{display:none!important}
+.kp{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:6px 0 16px}
+.kt{position:relative;overflow:hidden;border-radius:18px;padding:14px 18px;background:linear-gradient(135deg,color-mix(in srgb,var(--in) 16%,var(--card)),var(--card));border:1px solid color-mix(in srgb,var(--in) 30%,var(--line));display:flex;flex-direction:column;gap:2px}
+.kt::after{content:"";position:absolute;right:-26px;top:-26px;width:90px;height:90px;border-radius:50%;background:color-mix(in srgb,var(--in) 14%,transparent)}
+.kt span{font-size:13px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+.kt b{font:800 32px/1.15 'Bricolage Grotesque',sans-serif;letter-spacing:-.02em}.kt b.sm{font-size:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kt small{color:var(--mu);font-size:13px}
+.kt.kal{background:linear-gradient(135deg,color-mix(in srgb,var(--r) 22%,var(--card)),var(--card));border-color:color-mix(in srgb,var(--r) 50%,var(--line))}.kt.kal b{color:var(--rt)}
+.ft{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 6px;padding:10px 12px;border-radius:16px;background:var(--card);border:1px solid var(--line)}
+.srch{position:relative;flex:1 1 260px;min-width:200px}.srch span{position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none}
+.srch input{padding-left:38px;padding-right:38px;border-radius:12px}
+.srch button{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;padding:0;border-radius:8px;background:var(--bg);color:var(--mu);min-height:0}
+.ord{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--mu);flex:0 0 auto}.ord select{width:auto}
+#dirb{flex:0 0 auto;border-radius:12px}#dirb:disabled{opacity:.45;cursor:default}
+.sh{font:800 20px 'Bricolage Grotesque',sans-serif;margin:22px 0 12px;letter-spacing:-.01em}.sh .cnt{font:400 15px 'DM Sans',sans-serif;color:var(--mu)}
+.sg{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.sc{border-left:0;padding:0;overflow:hidden;gap:0;border:1px solid var(--line);border-top:5px solid var(--line);transition:transform .15s,box-shadow .15s}
+.sc:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.12)}
+.sc.scaduta,.sc.urgente{border-top-color:var(--r)}.sc.presto{border-top-color:var(--amb)}.sc.ok{border-top-color:var(--g)}
+.sc>*{margin-left:18px;margin-right:18px}
+.sc-top{display:flex;align-items:center;gap:12px;margin-top:16px;margin-bottom:6px}
+.sc .ico,.nm .ico{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:14px;font-size:24px;background:color-mix(in srgb,var(--in) 14%,var(--card));flex:0 0 auto}
+.ttl{flex:1;min-width:0}.ttl h3{margin:0;font-size:19px;overflow-wrap:anywhere}.ttl small{color:var(--mu);font-size:13.5px}
+.cd{display:flex;align-items:baseline;gap:8px;margin-top:6px}.cd b{font:800 42px/1.1 'Bricolage Grotesque',sans-serif;letter-spacing:-.03em}.cd span{color:var(--mu);font-size:14px}
+.cd.scaduta b,.cd.urgente b{color:var(--rt)}.cd.presto b{color:var(--am)}.cd.ok b{color:var(--gt)}
+.pb{height:9px;border-radius:99px;background:var(--bg);overflow:hidden;margin-top:8px}.pb i{display:block;height:100%;border-radius:99px;background:var(--g)}
+.pb.presto i{background:var(--amb)}.pb.urgente i,.pb.scaduta i{background:var(--r)}
+.pbl{display:flex;justify-content:space-between;font-size:12px;color:var(--mu);margin-top:3px}
+.sc{border-left-color:color-mix(in srgb,var(--tx) 32%,var(--card));border-right-color:color-mix(in srgb,var(--tx) 32%,var(--card));border-bottom-color:color-mix(in srgb,var(--tx) 32%,var(--card))}
+.nr,.kp>*,.ft{border-color:color-mix(in srgb,var(--tx) 32%,var(--card))}
+.sc,.nr,.kp>*,.ft{box-shadow:0 4px 14px rgba(15,23,42,.16),0 1px 3px rgba(15,23,42,.14)}
+.sc:hover,.nr:hover{box-shadow:0 10px 26px rgba(15,23,42,.18)}
+[data-theme=dark] .sc,[data-theme=dark] .nr,[data-theme=dark] .kp>*,[data-theme=dark] .ft{box-shadow:none}
+[data-theme=dark] .nr,[data-theme=dark] .kp>*,[data-theme=dark] .ft{border-color:var(--line)}
+[data-theme=dark] .sc{border-left-color:var(--line);border-right-color:var(--line);border-bottom-color:var(--line)}
+.tc{background:color-mix(in srgb,var(--bgc) 20%,var(--card))!important;border-color:color-mix(in srgb,var(--bgc) 45%,var(--line))!important}.pal span.nc{background:linear-gradient(135deg,var(--card) 44%,var(--mu) 46% 54%,var(--card) 56%)}.sc dl{margin:10px 18px 4px}.sc .pr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.sc .pr b{font:800 28px/1.1 'Bricolage Grotesque',sans-serif;letter-spacing:-.02em}.sc .pr small{font-size:14px}.sc .stb{flex:1 1 100%}#cSt table{width:100%;border-collapse:collapse}#cSt td{padding:9px 6px;border-bottom:1px solid var(--line)}#cSt td:nth-child(3){text-align:right;font-weight:700}#cSt tr:last-child td{border-bottom:0}.sc h3{overflow-wrap:normal;word-break:normal;hyphens:none}.sc-top{flex-wrap:wrap}.sc-top .ttl{flex:1 1 150px;min-width:0}
+.sc .bt{margin-bottom:6px}.sc details{margin-bottom:14px}
+.nl{display:grid;gap:10px}
+.nr{display:flex;align-items:center;gap:14px;padding:10px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);transition:transform .12s,box-shadow .12s}
+.nr:hover{transform:translateX(3px);box-shadow:0 6px 18px rgba(0,0,0,.1)}
+.dtb{flex:0 0 58px;text-align:center;border-radius:12px;padding:6px 0;background:color-mix(in srgb,var(--in) 14%,var(--card));line-height:1.1}
+.dtb b{display:block;font:800 22px 'Bricolage Grotesque',sans-serif}.dtb span{display:block;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--in)}.dtb small{font-size:11px;color:var(--mu)}
+.nr .nm{flex:1;min-width:0}.nr .nm b{display:block;font-size:16px;overflow-wrap:anywhere}.nr .nm .mu{font-size:14px}
+.nr .imp{flex:0 0 auto;font:800 18px 'Bricolage Grotesque',sans-serif;padding:5px 14px;border-radius:99px;background:color-mix(in srgb,var(--in) 14%,var(--card))}
+.nr .az{flex:0 0 auto;white-space:nowrap}.nr .az .mini{width:auto;padding:4px 12px;min-height:36px;margin-left:4px}
+@media(max-width:700px){.nr{flex-wrap:wrap}.nr .az{margin-left:auto}.kt b{font-size:26px}.sg{grid-template-columns:1fr}}
 </style>
 
 <div class="row hd{{ ' nv' if vista != 'scad' }}"><h1 class="ph">{% from "_ic.html" import ic %}{{ ic('scad' if vista == 'scad' else 'agenda') }}{{ 'Scadenze' if vista == 'scad' else 'Agenda' }}</h1>{% if vista == 'sett' %}<div style="display:flex;gap:8px;flex:0 0 auto;min-width:0"><a class="x" href="/agenda?vista=sett&data={{ prec }}">← Precedente</a><a class="x" href="/agenda?vista=sett&data={{ succ }}">Successiva →</a></div>{% elif vista == 'mese' %}<div style="display:flex;gap:8px;flex:0 0 auto;min-width:0"><a class="x" href="/agenda?vista=mese&data={{ prec }}">← {{ nome_prec }}</a><a class="x" href="/agenda?vista=mese&data={{ succ }}">{{ nome_succ }} →</a></div>{% endif %}</div>
@@ -126,31 +173,50 @@ dialog h2{margin:0 0 14px}
 
 {% else %}
 <div class="tb"><h2>Scadenze e pagamenti</h2><span class="sp"></span><button type="button" class="pr sec" id="nuovaNota">+ Inserisci nota/pagamento</button><button type="button" class="pr" id="nuovaScad">+ Scadenza</button></div>
-<p class="leg">Ogni voce (assicurazione, bollo, …) mostra l'ultimo pagamento e quando scade. Un avviso compare da 30 giorni prima. Quando rinnovi, usa «Rinnova»: il vecchio pagamento resta nello storico.
-{% if per_anno %} · Pagato: {% for a, tot in per_anno %}<b style="color:var(--tx)">{{ a }}</b> {{ tot|eur_it }} €{{ ' · ' if not loop.last }}{% endfor %}{% endif %}</p>
-{% if voci %}<div class="sg">
-{% for v in voci %}{% set s = v.s %}<div class="card sc {{ v.stato }}" data-s='{{ sj(s) }}'>
-<div class="row" style="flex-wrap:nowrap"><h3>{{ s.voce }}</h3><span style="flex:0 0 auto;min-width:0">{{ stato(v) }}</span></div>
-<dl><dt>Scade il</dt><dd>{{ s.scadenza|data_it }}</dd>
-<dt>Ultimo pagamento</dt><dd>{{ s.data_pagamento|data_it }}</dd>
-<dt>Importo</dt><dd>{% if s.importo is not none %}{{ s.importo|eur_it }} €{% else %}—{% endif %}</dd>
-<dt>Validità</dt><dd>{{ (s.validita_mesi|validita) or '—' }}</dd></dl>
+<div class="kp">
+<div class="kt"><span>Scadenze monitorate</span><b>{{ n_attive }}</b><small>con una scadenza attiva</small></div>
+<div class="kt{{ ' kal' if alert }}"><span>Da controllare</span><b>{{ alert|length }}</b><small>scadute o entro 30 giorni</small></div>
+<div class="kt"><span>Prossima scadenza</span>{% if prossima %}<b class="sm">{{ prossima.s.voce }}</b><small>{{ prossima.s.scadenza|data_it }} · {% if prossima.giorni == 0 %}oggi{% else %}tra {{ prossima.giorni }} giorni{% endif %}</small>{% else %}<b>—</b><small>nessuna in arrivo</small>{% endif %}</div>
+<div class="kt"><span>Pagato nel {{ anno_corr }}</span><b>{{ pagato_anno|eur_it }} €</b><small>scadenze, note e pagamenti</small></div>
+</div>
+<div class="ft">
+<div class="srch"><span aria-hidden="true">🔍</span><input id="cerca" type="search" placeholder="Cerca: es. caldaia, bollo, assicurazione…" autocomplete="off" aria-label="Cerca"><button type="button" id="xcerca" hidden aria-label="Cancella ricerca">✕</button></div>
+<label class="ord">Anno<select id="anno"><option value="">Tutti gli anni</option>{% set ys = [] %}{% for v in voci %}{% for y in ((v.s.data_pagamento.year if v.s.data_pagamento else none), (v.s.scadenza.year if v.s.scadenza else none)) %}{% if y and y not in ys %}{% set _ = ys.append(y) %}{% endif %}{% endfor %}{% endfor %}{% for h in note %}{% if h.data_pagamento and h.data_pagamento.year not in ys %}{% set _ = ys.append(h.data_pagamento.year) %}{% endif %}{% endfor %}{% for y in ys|sort(reverse=true) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}</select></label>
+<label class="ord">Ordina per<select id="ordina"><option value="def">Predefinito</option><option value="data">Data</option><option value="imp">Importo</option><option value="nome">Ordine alfabetico</option></select></label>
+<button type="button" class="x" id="dirb" data-d="1" disabled>↑ Crescente</button>
+</div>
+<p class="leg" style="margin-top:6px">Ogni voce mostra l'ultimo pagamento e quando scade; un avviso compare da 30 giorni prima. Con «Rinnova» il vecchio pagamento resta nello storico.</p>
+
+<h3 class="sh">⏰ Scadenze <span class="cnt" id="nS">({{ voci|length }})</span></h3>
+{% if voci %}<div class="sg" id="listaS">
+{% for v in voci %}{% set s = v.s %}{% set tx %}{{ s.voce }} {{ s.nota }} {{ s.importo }} {% for h in v.storico %}{{ h.nota }} {{ h.importo }} {% endfor %}{% endset %}
+<div class="card sc itm {{ v.stato }}{{ ' tc' if s.colore }}"{% if s.colore %} style="--bgc:{{ s.colore }}"{% endif %} data-anni="{{ (s.data_pagamento.year ~ ' ' if s.data_pagamento else '') ~ (s.scadenza.year if s.scadenza else '') }}" data-s='{{ sj(s) }}' data-i="{{ loop.index0 }}" data-nome="{{ s.voce|lower }}" data-data="{{ s.scadenza.isoformat() if s.scadenza else '' }}" data-importo="{{ s.importo if s.importo is not none else '' }}" data-txt="{{ tx|lower|trim }}">
+<div class="sc-top"><span class="ico">{{ s.voce|icona }}</span><div class="ttl"><h3>{{ s.voce }}</h3><div class="pr">{% if s.importo is not none %}<b>{{ s.importo|eur_it }} €</b>{% endif %}<small>{{ (s.validita_mesi|validita) or 'senza durata' }}</small></div></div><span style="flex:0 0 auto">{{ stato(v) }}</span></div>
+{% if v.giorni is not none and v.stato != 'chiusa' %}<div class="cd {{ v.stato }}">{% if v.giorni == 0 %}<b>Oggi</b><span>scade oggi</span>{% else %}<b>{{ v.giorni|abs }}</b><span>{{ 'giorni dopo la scadenza' if v.giorni < 0 else 'giorni alla scadenza' }}</span>{% endif %}</div>{% endif %}
+{% if v.perc is not none %}<div class="pb {{ v.stato }}"><i style="width:{{ v.perc }}%"></i></div><div class="pbl"><span>{{ s.data_pagamento|data_it }}</span><span>{{ s.scadenza|data_it }}</span></div>{% endif %}
+<dl><dt>Scade il</dt><dd>{{ s.scadenza|data_it }}</dd><dt>Ultimo pagamento</dt><dd>{{ s.data_pagamento|data_it }}</dd></dl>
 {% if s.nota %}<div class="mu" style="font-size:14px">{{ s.nota }}</div>{% endif %}
 <div class="bt"><button type="button" data-az="rinnova">↻ Rinnova</button><button type="button" class="x" data-az="modifica">Modifica</button>
-<form method="post" action="/agenda/scadenza/{{ s.id }}/chiudi" style="margin:0"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><button class="x">{{ 'Riattiva' if s.chiusa else 'Non rinnovare più' }}</button></form></div>
-{% if v.storico|length > 1 or true %}<details><summary>Storico pagamenti ({{ v.storico|length }})</summary><table>
+<form method="post" action="/agenda/scadenza/{{ s.id }}/chiudi" style="margin:0"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><button class="x">{{ 'Riattiva' if s.chiusa else 'Non rinnovare più' }}</button></form><button type="button" class="x stb" data-st>🕘 Storico pagamenti ({{ v.storico|length }})</button></div>
+<div class="stsrc" hidden data-t="{{ s.voce }}"><table>
 {% for h in v.storico %}<tr data-s='{{ sj(h) }}'><td>{{ h.data_pagamento|data_it }}</td><td class="mu">{{ (h.validita_mesi|validita) }}</td><td>{% if h.importo is not none %}{{ h.importo|eur_it }} €{% endif %}</td>
 <td style="text-align:right;white-space:nowrap"><button type="button" class="x mini" data-az="modifica">Modifica</button>
 <form method="post" action="/agenda/scadenza/{{ h.id }}/elimina" style="display:inline" onsubmit="return confirm('Eliminare questo pagamento dallo storico?')"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><button class="x mini">✕</button></form></td></tr>{% endfor %}
-</table></details>{% endif %}
+</table></div>
 </div>{% endfor %}
-</div>{% else %}<div class="card vuoto">Nessuna scadenza ancora.<br>Aggiungi per esempio «Assicurazione auto» con importo, data di pagamento e durata: l'app calcola quando scade e ti avvisa un mese prima.</div>{% endif %}
-<h2 style="margin:26px 0 10px">Note e pagamenti</h2>
-{% if note %}<div class="card" style="padding:8px 16px"><table class="nt">
-{% for h in note %}<tr data-s='{{ sj(h) }}'><td>{{ h.data_pagamento|data_it }}</td><td><b>{{ h.voce }}</b>{% if h.nota %}<div class="mu" style="font-size:14px">{{ h.nota }}</div>{% endif %}</td><td>{% if h.importo is not none %}{{ h.importo|eur_it }} €{% endif %}</td>
-<td style="text-align:right;white-space:nowrap"><button type="button" class="x mini" data-az="modifica" style="width:auto;padding:4px 12px;min-height:36px">Modifica</button>
-<form method="post" action="/agenda/scadenza/{{ h.id }}/elimina" style="display:inline" onsubmit="return confirm('Eliminare questa nota?')"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><button class="x mini" style="width:auto;padding:4px 12px;min-height:36px">✕</button></form></td></tr>{% endfor %}
-</table></div>{% else %}<div class="card vuoto">Nessuna nota. Con «Inserisci nota/pagamento» puoi annotare un pagamento o un appunto senza scadenza.</div>{% endif %}
+</div>{% else %}<div class="card vuoto">Nessuna scadenza ancora.<br>Con «+ Scadenza» aggiungi per esempio «Assicurazione auto» con importo, data di pagamento e durata: l'app calcola quando scade e ti avvisa un mese prima.</div>{% endif %}
+
+<h3 class="sh">📝 Note e pagamenti <span class="cnt" id="nN">({{ note|length }})</span></h3>
+{% if note %}<div class="nl" id="listaNote">
+{% for h in note %}{% set tx %}{{ h.voce }} {{ h.nota }} {{ h.importo }}{% endset %}
+<div class="nr itm{{ ' tc' if h.colore }}"{% if h.colore %} style="--bgc:{{ h.colore }}"{% endif %} data-anni="{{ h.data_pagamento.year if h.data_pagamento else '' }}" data-s='{{ sj(h) }}' data-i="{{ loop.index0 }}" data-nome="{{ h.voce|lower }}" data-data="{{ h.data_pagamento.isoformat() if h.data_pagamento else '' }}" data-importo="{{ h.importo if h.importo is not none else '' }}" data-txt="{{ tx|lower|trim }}">
+<div class="dtb">{% if h.data_pagamento %}<b>{{ h.data_pagamento.day }}</b><span>{{ ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'][h.data_pagamento.month - 1] }}</span><small>{{ h.data_pagamento.year }}</small>{% else %}<b>—</b>{% endif %}</div>
+<div class="nm"><b>{{ h.voce|icona }} {{ h.voce }}</b>{% if h.nota %}<div class="mu">{{ h.nota }}</div>{% endif %}</div>
+{% if h.importo is not none %}<span class="imp">{{ h.importo|eur_it }} €</span>{% endif %}
+<div class="az"><button type="button" class="x mini" data-az="modifica">Modifica</button>
+<form method="post" action="/agenda/scadenza/{{ h.id }}/elimina" style="display:inline" onsubmit="return confirm('Eliminare questa nota?')"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><button class="x mini" aria-label="Elimina">✕</button></form></div></div>{% endfor %}
+</div>{% else %}<div class="card vuoto">Nessuna nota. Con «Inserisci nota/pagamento» puoi annotare un pagamento o un appunto senza scadenza.</div>{% endif %}
+<p class="card vuoto" id="nulla" hidden>Nessun risultato per questa ricerca.</p>
 {% endif %}
 
 <dialog id="dImp"><form method="post" action="/agenda/impegno/salva" class="df">
@@ -166,6 +232,7 @@ dialog h2{margin:0 0 14px}
 <div class="bb"><button type="submit" class="dl" id="delImp" formnovalidate onclick="return confirm('Eliminare questo impegno?')">Elimina</button><button type="button" class="x" data-chiudi>Annulla</button><button type="submit">Salva</button></div>
 </form></dialog>
 
+<dialog id="dSt"><h2 id="tSt"></h2><div id="cSt"></div><div style="text-align:right;margin-top:14px"><button type="button" class="x" data-chiudi style="width:auto;padding:8px 18px">Chiudi</button></div></dialog>
 <dialog id="dScad"><form method="post" action="/agenda/scadenza/salva" class="df">
 <h2 id="tScad">Nuovo pagamento / scadenza</h2>
 <input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="next" value="{{ nxt }}"><input type="hidden" name="id"><input type="hidden" name="tipo" value="scad">
@@ -174,6 +241,7 @@ dialog h2{margin:0 0 14px}
 <div class="r2"><label>Importo pagato (€)<input name="importo" inputmode="decimal" placeholder="0,00"></label><label>Data pagamento<input type="date" name="data_pagamento"></label></div>
 <div id="soloSc"><div class="r2"><label>Validità<input name="validita" inputmode="decimal" placeholder="Es. 12"></label><label>&nbsp;<select name="unita"><option value="mesi">mesi</option><option value="anni">anni</option></select></label></div>
 <div class="r2"><label>Scade il<input type="date" name="scadenza"></label><label>Avviso giorni prima<input name="preavviso" type="number" min="30" max="365" value="30"></label></div></div>
+<div class="pal" role="radiogroup" aria-label="Colore di sfondo">{% for c in colori_sc %}<label title="{{ 'Nessun colore' if loop.first else 'Colore ' ~ loop.index0 }}"><input type="radio" name="colore" value="{{ c }}"{% if loop.first %} checked{% endif %}><span class="{{ 'nc' if not c }}" style="--sw:{{ c or 'var(--mu)' }}"></span></label>{% endfor %}</div>
 <label>Note<textarea name="nota" rows="2" maxlength="500"></textarea></label>
 <div class="bb"><button type="button" class="x" data-chiudi>Annulla</button><button type="submit">Salva</button></div>
 </form></dialog>
@@ -214,17 +282,49 @@ function scad(o,titolo,tipo){
  f.id.value=o.id||'';f.voce.value=o.voce||'';f.importo.value=o.importo!=null?String(o.importo).replace('.',','):'';
  f.data_pagamento.value=o.dp||'';
  const m=o.mesi||'';if(m&&m%12==0){f.validita.value=m/12;f.unita.value='anni'}else{f.validita.value=m;f.unita.value='mesi'}
- f.scadenza.value=o.sc||'';f.preavviso.value=o.pre||30;f.nota.value=o.nota||'';
+ (f.querySelector('input[name=colore][value="'+(o.colore||'')+'"]')||f.querySelector('input[name=colore]')).checked=true;f.scadenza.value=o.sc||'';f.preavviso.value=o.pre||30;f.nota.value=o.nota||'';
  $('#tScad').textContent=titolo;if(o.sc&&o.id)manuale=true;
  dS.showModal();(o.id||o.rinnovo?f.importo:f.voce).focus();
 }
+// ricerca e ordinamento di scadenze e note
+const an=$('#anno'),cerca=$('#cerca'),ord=$('#ordina'),dirb=$('#dirb'),xc=$('#xcerca');
+if(cerca){
+ const TXT={nome:['A → Z','Z → A'],data:['Dalla più vecchia','Dalla più recente'],imp:['Dal più basso','Dal più alto']};
+ const applica=()=>{
+  const q=cerca.value.trim().toLowerCase(),k=ord.value,dir=dirb.dataset.d=='1'?1:-1;let vis=0;
+  dirb.disabled=k=='def';dirb.textContent=k=='def'?'↑ Crescente':(dir==1?'↑ ':'↓ ')+TXT[k][dir==1?0:1];xc.hidden=!q;
+  [['#listaS','#nS'],['#listaNote','#nN']].forEach(([ls,cn])=>{
+   const box=$(ls);if(!box)return;const it=[...box.querySelectorAll(':scope>.itm')];
+   it.forEach(e=>e.hidden=(!!q&&!e.dataset.txt.includes(q))||(!!an.value&&!e.dataset.anni.split(' ').includes(an.value)));
+   it.sort((a,b)=>{
+    if(k=='def')return a.dataset.i-b.dataset.i;
+    if(k=='nome')return a.dataset.nome.localeCompare(b.dataset.nome,'it')*dir;
+    const kk=k=='imp'?'importo':k,va=a.dataset[kk],vb=b.dataset[kk],ea=va==='',eb=vb==='';
+    if(ea||eb)return ea&&eb?0:ea?1:-1;
+    const d=k=='imp'?(+va-+vb):(va<vb?-1:va>vb?1:0);
+    return d*dir||a.dataset.nome.localeCompare(b.dataset.nome,'it')});
+   it.forEach(e=>box.appendChild(e));
+   const n=it.filter(e=>!e.hidden).length;vis+=n;$(cn).textContent='('+n+')';
+  });
+  $('#nulla').hidden=!((q||an.value)&&!vis);
+ };
+ cerca.addEventListener('input',applica);ord.addEventListener('change',applica);an.addEventListener('change',applica);
+ dirb.addEventListener('click',()=>{dirb.dataset.d=dirb.dataset.d=='1'?'-1':'1';applica()});
+ xc.addEventListener('click',()=>{cerca.value='';applica();cerca.focus()});
+ applica();
+}
 const nuova=$('#nuovaScad');if(nuova)nuova.onclick=()=>scad({},'Nuova scadenza','scad');
 const nn=$('#nuovaNota');if(nn)nn.onclick=()=>scad({dp:iso(new Date())},'Nuova nota / pagamento','nota');
-document.querySelectorAll('[data-az]').forEach(b=>b.addEventListener('click',()=>{
+document.querySelectorAll('[data-st]').forEach(b=>b.addEventListener('click',()=>{
+ const c=b.closest('.sc'),src=c.querySelector('.stsrc');
+ $('#tSt').textContent='Storico pagamenti · '+src.dataset.t;$('#cSt').innerHTML=src.innerHTML;$('#dSt').showModal();
+}));
+$('#cSt').addEventListener('click',e=>{const b=e.target.closest('[data-az]');if(!b)return;const o=JSON.parse(b.closest('[data-s]').dataset.s);$('#dSt').close();scad(o,'Modifica pagamento')});
+document.querySelectorAll('.sc [data-az], .nr [data-az]').forEach(b=>b.addEventListener('click',()=>{
  const el=b.closest('[data-s]'),o=JSON.parse(el.dataset.s);
  if(b.dataset.az=='modifica')scad(o,o.tipo=='nota'?'Modifica nota / pagamento':'Modifica pagamento');
  else{ // rinnovo: stessa voce, nuovo pagamento da oggi
-  const r={voce:o.voce,importo:o.importo,mesi:o.mesi,pre:o.pre,nota:o.nota,dp:iso(new Date()),rinnovo:1};
+  const r={colore:o.colore,voce:o.voce,importo:o.importo,mesi:o.mesi,pre:o.pre,nota:o.nota,dp:iso(new Date()),rinnovo:1};
   scad(r,'Rinnova: '+o.voce);calcola();
  }
 }));

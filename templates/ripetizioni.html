@@ -143,6 +143,21 @@ const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim
 const eur=v=>v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
 const anni=[...new Set(Object.keys(INC).map(k=>k.slice(0,4)))].sort().reverse();
 anno.innerHTML=anni.map(a=>`<option>${a}</option>`).join('');
+// blocchi 3D con spigoli arrotondati
+const hx=h=>[1,3,5].map(k=>parseInt(h.slice(k,k+2),16));
+const mix=(h,o,q)=>{const a=hx(h),b=hx(o);return 'rgb('+a.map((v,k)=>Math.round(v+(b[k]-v)*q)).join(',')+')'};
+function cubo(c,x,y,w,h,d,col,o){
+ o=o||{};if(h<=0||w<=0)return;
+ const r=Math.min(10,w*.16,h/2),sagoma=(dx,dy)=>{c.beginPath();c.roundRect(x+dx,y+dy,w,h,r)};
+ c.save();
+ c.fillStyle=mix(col,'#000000',.42);for(let k=d;k>=1;k-=.5){sagoma(k,-k);c.fill()}
+ c.save();c.beginPath();c.rect(x-2,y-d-2,w+d+4,d+2);c.clip();
+ c.fillStyle=mix(col,'#ffffff',.5);for(let k=d;k>=1;k-=.5){sagoma(k,-k);c.fill()}c.restore();
+ const g=c.createLinearGradient(0,y,0,y+h);g.addColorStop(0,mix(col,'#ffffff',o.chiara?.5:.18));g.addColorStop(1,mix(col,'#000000',o.chiara?0:.1));
+ c.fillStyle=g;sagoma(0,0);c.fill();
+ c.restore();
+}
+const VERDE='#16a34a',AZZ='#0891b2';
 let g;
 function disegna(){
  Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.font.size=window.innerWidth>=2600?17:window.innerWidth>=1900?14:12;Chart.defaults.color=css('--mu');Chart.defaults.borderColor=css('--line');
@@ -161,14 +176,18 @@ function disegna(){
  const conf=(lab,v,vp)=>vp>0?`${lab} ${yp}: ${eur(vp)} (${v>=vp?'+':'−'}${Math.abs(Math.round((v/vp-1)*100))}%)`:'';
  kmmp.textContent=conf('Media mensile',mediaM,mMp);ksp.textContent=conf('Media settimanale',mediaS,mSp);
  ky.textContent=ky2.textContent=y;const tot=inc.reduce((a,b)=>a+b,0),pre=anni.includes(String(y-1))?MESI.reduce((s,_,m)=>s+(INC[`${y-1}-${String(m+1).padStart(2,'0')}`]||0),0):0;kinc.textContent=eur(tot);kincp.textContent=pre>0?`${y-1}: ${eur(pre)} (${tot>=pre?'+':'−'}${Math.abs(Math.round((tot/pre-1)*100))}%)`:'';kmm.textContent=eur(mediaM);kms.textContent=eur(mediaS);
- g=new Chart(cg,{type:'bar',data:{labels:MESI,datasets:[
-  {type:'bar',label:'Incassato nel mese',data:inc,backgroundColor:css('--g')+'cc',borderRadius:5,maxBarThickness:30,barPercentage:.7,categoryPercentage:.8,order:2,yAxisID:'y'},
+ const vis=m=>inc[m]>0,sopra=m=>inc[m]>=mediaM;
+ const p3d={id:'b3d',beforeDatasetsDraw(chart){const c=chart.ctx;chart.getDatasetMeta(0).data.forEach((b,i)=>{if(!vis(i))return;const w=b.width,d=Math.max(6,Math.min(16,w*.24));cubo(c,b.x-w/2,b.y,w,b.base-b.y,d,sopra(i)?VERDE:AZZ,{chiara:corr&&i==oggi.getMonth()})})},
+  afterDatasetsDraw(chart){const c=chart.ctx;c.save();c.fillStyle=css('--tx');c.font='800 '+(window.innerWidth>=1900?15:12)+"px 'DM Sans',sans-serif";c.textAlign='center';c.textBaseline='bottom';
+   chart.getDatasetMeta(0).data.forEach((b,i)=>{if(!vis(i))return;const w=b.width,d=Math.max(6,Math.min(16,w*.24));c.fillText(Math.round(inc[i]).toLocaleString('it-IT'),b.x+d/2,b.y-d-5)});c.restore()}};
+ g=new Chart(cg,{type:'bar',plugins:[p3d],data:{labels:MESI,datasets:[
+  {type:'bar',label:'Incassato nel mese',data:inc,backgroundColor:'rgba(0,0,0,0)',borderWidth:0,maxBarThickness:46,barPercentage:.7,categoryPercentage:.85,order:2,yAxisID:'y'},
   {type:'line',label:'Media mensile',data:Array(12).fill(+mediaM.toFixed(2)),borderColor:css('--mu'),borderDash:[6,6],borderWidth:2,pointRadius:0,order:1,yAxisID:'y'},
   {type:'line',label:'Media a settimana (del mese)',data:sett,borderColor:'#f5a524',backgroundColor:'#f5a524',borderWidth:3,tension:.3,pointRadius:4,order:0,yAxisID:'y2'}]},
-  options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-   plugins:{tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${eur(c.parsed.y)}`}}},
-   scales:{y:{beginAtZero:true,ticks:{callback:v=>eur(v)},title:{display:true,text:'Euro al mese'}},
-    y2:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},ticks:{callback:v=>eur(v)},title:{display:true,text:'Euro a settimana'}}}}});
+  options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},layout:{padding:{top:26,right:8}},
+   plugins:{legend:{labels:{usePointStyle:true,boxWidth:10,boxHeight:10,padding:14,generateLabels:ch=>{const L=Chart.defaults.plugins.legend.labels.generateLabels(ch);return L.flatMap(l=>l.datasetIndex==0?[Object.assign({},l,{text:'Sopra la media mensile',fillStyle:VERDE,strokeStyle:VERDE,pointStyle:'rectRounded'}),Object.assign({},l,{text:'Sotto la media mensile',fillStyle:AZZ,strokeStyle:AZZ,pointStyle:'rectRounded',datasetIndex:99})]:[Object.assign({},l,{pointStyle:l.datasetIndex==1?'line':'rectRounded'})])},filter:null},onClick:()=>{}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${eur(c.parsed.y)}`}}},
+   scales:{y:{beginAtZero:true,grace:'10%',ticks:{callback:v=>eur(v)},title:{display:true,text:'Euro al mese'}},
+    y2:{position:'right',beginAtZero:true,grace:'10%',grid:{drawOnChartArea:false},ticks:{callback:v=>eur(v)},title:{display:true,text:'Euro a settimana'}}}}});
 }
 function aggiornaGrafici(){disegna()}
 anno.onchange=disegna;disegna();

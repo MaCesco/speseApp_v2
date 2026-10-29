@@ -1,4 +1,4 @@
-{% from "_ic.html" import ic %}{% set _pth = request.path %}{% set sez = 'rip' if _pth.startswith(('/ripetizioni', '/lezione', '/modifica-lezione')) else 'stip' if _pth.startswith('/stipendi') else 'spese' if _pth.startswith(('/dashboard', '/movimenti', '/impostazioni', '/nuovo', '/importa', '/esporta')) else 'agenda' if _pth.startswith('/agenda') else 'scad' if _pth.startswith('/scadenze') else 'home' %}<!doctype html>
+{% from "_ic.html" import ic %}{% set _pth = request.path %}{% set sez = 'rip' if _pth.startswith(('/ripetizioni', '/lezione', '/modifica-lezione')) else 'stip' if _pth.startswith('/stipendi') else 'spese' if _pth.startswith(('/dashboard', '/movimenti', '/impostazioni', '/nuovo', '/importa', '/esporta')) else 'agenda' if _pth.startswith('/agenda') else 'scad' if _pth.startswith('/scadenze') else 'doc' if _pth.startswith('/documenti') else 'home' %}<!doctype html>
 <html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Le mie spese</title>
@@ -15,6 +15,7 @@
 <a href="/stipendi" class="n-st"{% if sez == 'stip' %} aria-current="page"{% endif %}>{{ ic('stip') }}<span>Stipendi</span></a>
 <a href="/agenda" class="n-ag"{% if sez == 'agenda' %} aria-current="page"{% endif %}>{{ ic('agenda') }}<span>Agenda</span></a>
 <a href="/scadenze" class="n-sc"{% if sez == 'scad' %} aria-current="page"{% endif %}>{{ ic('scad') }}<span>Scadenze</span>{% if n_alert %}<i class="bdg">{{ n_alert }}</i>{% endif %}</a>
+<a href="/documenti" class="n-dc"{% if sez == 'doc' %} aria-current="page"{% endif %}>{{ ic('doc') }}<span>Documenti</span>{% if n_doc %}<i class="bdg">{{ n_doc }}</i>{% endif %}</a>
 <form method="post" action="/logout" class="solo-desk" style="margin:0"><input type="hidden" name="_t" value="{{ csrf }}"><button class="x">Esci</button></form>
 <button type="button" class="x tema solo-desk"></button>
 </nav>{% endif %}
@@ -116,5 +117,36 @@ document.querySelectorAll('.ch').forEach(ch=>{
  ch.append(bar,ctl,b,rs);
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')chiudi()});
+})()</script>
+<style>
+.cmin{display:inline-grid;place-items:center;width:28px;height:28px;min-height:0;padding:0;margin:0 8px 0 0;border-radius:50%;vertical-align:middle;background:color-mix(in srgb,var(--tx) 8%,var(--card));border:1px solid var(--line);color:var(--mu);cursor:pointer;flex:0 0 auto}
+.cmin:hover{color:var(--tx);filter:none}.cmin svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+.cmin[aria-expanded=false] svg{transform:rotate(-90deg)}
+.cnasc{display:none!important}.card.ccomp{align-self:start!important;height:auto!important;min-height:0!important}.card.ccomp>h2,.card.ccomp>h3,.card.ccomp .row:has(>h2) {margin-bottom:0!important}
+</style>
+<script>(function(){
+const IC='<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',pth=location.pathname;
+const salva=(k,v)=>{try{v?localStorage.setItem(k,'1'):localStorage.removeItem(k)}catch(e){}},leggi=k=>{try{return localStorage.getItem(k)==='1'}catch(e){return false}};
+document.querySelectorAll('.ch').forEach((ch,n)=>{
+ const card=ch.closest('.card');if(!card)return;
+ let top=ch;while(top.parentElement!==card)top=top.parentElement;
+ // titolo = ultimo h2/h3 che precede il grafico nella stessa card
+ let h=null,t=top.previousElementSibling;
+ while(t){const q=/^H[1-6]$/.test(t.tagName)?t:t.querySelector(':scope>h2,:scope>h3');if(q){h=q;break}t=t.previousElementSibling}
+ if(!h)return;
+ let hb=h;while(hb.parentElement!==card)hb=hb.parentElement;
+ const gruppo=[];for(let e=hb.nextElementSibling;e;e=e.nextElementSibling){gruppo.push(e);if(e===top)break}
+ for(let e=top.nextElementSibling;e&&e.tagName==='P';e=e.nextElementSibling)gruppo.push(e);
+ const id=ch.querySelector('canvas')?.id||String(n),k='cmin:'+pth+':'+id;
+ const b=document.createElement('button');b.type='button';b.className='cmin';b.innerHTML=IC;
+ const imposta=(chiuso,salvare)=>{b.setAttribute('aria-expanded',chiuso?'false':'true');b.title=chiuso?'Mostra il grafico':'Nascondi il grafico';b.setAttribute('aria-label',b.title);
+  gruppo.forEach(e=>e.classList.toggle('cnasc',chiuso));card.classList.toggle('ccomp',!!card.querySelector('.cmin')&&![...card.querySelectorAll('.cmin')].some(x=>x.getAttribute('aria-expanded')!=='false'));if(salvare)salva(k,chiuso);if(!chiuso)setTimeout(()=>window.dispatchEvent(new Event('resize')),30)};
+ b.onclick=()=>imposta(b.getAttribute('aria-expanded')==='true',true);
+ h.insertBefore(b,h.firstChild);
+ if(h.parentElement.classList.contains('row')&&getComputedStyle(h).display!=='flex'){}
+ try{localStorage.removeItem(k)}catch(e){}
+ imposta(false,false);
+ new MutationObserver(()=>{if(!h.contains(b))h.insertBefore(b,h.firstChild)}).observe(h,{childList:true});
+});
 })()</script>
 </body></html>

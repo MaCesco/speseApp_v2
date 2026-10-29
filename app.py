@@ -1,4 +1,4 @@
-import io, json, os, re, secrets
+import base64, hashlib, io, json, os, re, secrets
 from datetime import date, datetime, time, timedelta, timezone
 from functools import wraps
 import click
@@ -197,6 +197,29 @@ class Scadenza(db.Model):
     nota = db.Column(db.String(500), default="")
     chiusa = db.Column(db.Boolean, default=False, nullable=False)  # voce non piu' da rinnovare
     tipo = db.Column(db.String(10), default="scad")  # scad = ha una scadenza | nota = solo nota/pagamento
+    colore = db.Column(db.String(10), default="")  # colore di sfondo scelto ("" = nessuno)
+
+
+class Documento(db.Model):
+    """Carte e documenti personali (identita', passaporto, patente, bancomat, carte, conti correnti)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    tipo = db.Column(db.String(12), default="altro")  # ci | pass | pat | nau | ts | banc | cc | conto | altro
+    titolo = db.Column(db.String(120), nullable=False)
+    intestatario = db.Column(db.String(120), default="")
+    nome_p = db.Column(db.String(60), default="")
+    cognome_p = db.Column(db.String(60), default="")
+    numero = db.Column(db.String(60), default="")
+    ente = db.Column(db.String(120), default="")  # ente di rilascio / banca
+    rilascio = db.Column(db.Date)
+    scadenza = db.Column(db.Date, index=True)
+    iban = db.Column(db.String(40), default="")
+    nota = db.Column(db.String(500), default="")
+    colore = db.Column(db.String(10), default="")
+    conto_id = db.Column(db.Integer)  # per le carte: id del conto associato
+    immagine = db.Column(db.Text)  # immagine caricata (base64), solo per le carte
+    img_tipo = db.Column(db.String(20))
+    ordine = db.Column(db.Integer)  # posizione scelta dall'utente
 
 
 
@@ -204,7 +227,7 @@ def migra():
     """Aggiunge le colonne nuove alle tabelle gia' esistenti (database online)."""
     from sqlalchemy import inspect, text
     insp = inspect(db.engine)
-    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER"), ("impegno", "colore", "VARCHAR(10)"), ("scadenza", "tipo", "VARCHAR(10)")):
+    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER"), ("impegno", "colore", "VARCHAR(10)"), ("scadenza", "tipo", "VARCHAR(10)"), ("scadenza", "colore", "VARCHAR(10)"), ("documento", "conto_id", "INTEGER"), ("documento", "immagine", "TEXT"), ("documento", "img_tipo", "VARCHAR(20)"), ("documento", "ordine", "INTEGER"), ("documento", "nome_p", "VARCHAR(60)"), ("documento", "cognome_p", "VARCHAR(60)")):
         if col not in [c["name"] for c in insp.get_columns(tab)]:
             db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN {col} {tipo}"))
     if "contenuto" not in [c["name"] for c in insp.get_columns("file_bilancio")]:
@@ -241,12 +264,14 @@ def csrf():
 def ctx():
     session.setdefault("_t", secrets.token_hex(16))
     n_alert = 0
+    n_doc = 0
     if "uid" in session:
         try:
             n_alert = len(alert_scadenze(session["uid"]))
+            n_doc = len(documenti_in_scadenza(session["uid"]))
         except Exception:
             db.session.rollback()
-    return {"csrf": session["_t"], "ENTRATE": ENTRATE, "USCITE": USCITE, "n_alert": n_alert}
+    return {"csrf": session["_t"], "ENTRATE": ENTRATE, "USCITE": USCITE, "n_alert": n_alert, "n_doc": n_doc}
 
 
 @app.cli.command("crea-utente")
@@ -358,7 +383,7 @@ def logout():
 @app.route("/")
 @login_required
 def home():
-    return render_template("home.html", alert=alert_scadenze(session["uid"]))
+    return render_template("home.html", alert=alert_scadenze(session["uid"]), docs_alert=documenti_in_scadenza(session["uid"]), oggi=date.today())
 
 
 @app.route("/dashboard")
@@ -1872,7 +1897,7 @@ def ore_esporta():
         for c in ws[1]:
             c.font = Font(bold=True)
             c.alignment = Alignment(wrap_text=True, vertical="center")
-        n = calendar.monthrange(a, m)[1]
+        n = _cal.monthrange(a, m)[1]
         for g in range(1, n + 1):
             d = date(a, m, g)
             o = per_mese[(a, m)].get(g)
@@ -1962,7 +1987,10 @@ def voci_scadenze(uid):
             stato = "presto"
         else:
             stato = "ok"
-        voci.append(dict(s=ult, storico=list(reversed(lista)), giorni=giorni, stato=stato))
+        perc = None
+        if ult.data_pagamento and ult.scadenza and ult.scadenza > ult.data_pagamento:
+            perc = round(min(1, max(0, (oggi - ult.data_pagamento).days / (ult.scadenza - ult.data_pagamento).days)) * 100)
+        voci.append(dict(s=ult, storico=list(reversed(lista)), giorni=giorni, stato=stato, perc=perc))
     ordine = {"scaduta": 0, "urgente": 1, "presto": 2, "ok": 3, "nd": 4, "chiusa": 5}
     voci.sort(key=lambda v: (ordine[v["stato"]], v["s"].scadenza or date.max, v["s"].voce.lower()))
     return voci
@@ -1976,6 +2004,18 @@ def _it(d):
     return f"{d.day} {MESI_LUNGHI[d.month - 1][:3]} {d.year}"
 
 
+def _icona(voce):
+    v = (voce or "").lower()
+    for chiavi, ico in ((("assicur",), "🛡️"), (("bollo",), "🧾"), (("caldaia", "camin", "gas", "luce", "energia", "riscald"), "🔥"),
+                        (("auto", "revision", "moto", "gomme", "tagliando"), "🚗"), (("casa", "imu", "tari", "affitto", "condomin", "mutuo"), "🏠"),
+                        (("abbon", "palestra", "netflix", "spotify", "tessera"), "🎟️"), (("tasse", "irpef", "f24", "canone", "rai"), "🏛️"),
+                        (("medic", "dent", "salute", "visita"), "🩺")):
+        if any(k in v for k in chiavi):
+            return ico
+    return "📌"
+
+
+app.jinja_env.filters["icona"] = _icona
 app.jinja_env.filters["data_it"] = lambda d: _it(d) if d else "—"
 app.jinja_env.filters["validita"] = lambda m: ("" if not m else f"{m // 12} anno" if m == 12 else f"{m // 12} anni" if m % 12 == 0 else f"{m} mesi")
 
@@ -2024,6 +2064,9 @@ def eventi_periodo(uid, da, a):
         if s.scadenza and da <= s.scadenza <= a and not s.chiusa:
             put(s.scadenza, dict(kind="scad", titolo=f"SCADENZA {s.voce}", ini="", fine="", href="/scadenze", cls="scad",
                                  sub=(f"{s.importo:g} €".replace(".", ",") if s.importo else "")))
+    for dc in Documento.query.filter(Documento.user_id == uid, Documento.scadenza >= da, Documento.scadenza <= a):
+        put(dc.scadenza, dict(kind="scad", titolo=f"SCADENZA {nome_doc(dc)}", ini="", fine="", href="/documenti", cls="scad",
+                              sub=dc.intestatario or ""))
     for d, lst in out.items():
         for e in lst:
             try:
@@ -2038,6 +2081,319 @@ def eventi_periodo(uid, da, a):
                 e["start"] = None
         lst.sort(key=lambda e: (e["start"] is None, e["start"] or 0, e["titolo"]))
     return out
+
+
+CARTE = ("banc", "cc", "deb")
+TIPI_DOC = {
+    "ci": "Carta d'identità", "pass": "Passaporto", "pat": "Patente", "nau": "Patente nautica", "ts": "Tessera sanitaria", "cf": "Codice fiscale", "banc": "Bancomat",
+    "cc": "Carta di credito", "deb": "Carta di debito", "conto": "Conto corrente", "altro": "Altro documento",
+}
+COLORI_DOC = ["#2563eb", "#0891b2", "#16a34a", "#eab308", "#f97316", "#dc2626", "#ec4899", "#64748b", "#0f172a"]
+
+
+def _slug(t):
+    import unicodedata
+    t = unicodedata.normalize("NFKD", t or "").encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")
+
+
+def immagini_doc():
+    """File in static/documenti/: nome = <tipo>.ext, <tipo>-<banca>.ext oppure <banca>.ext (png, jpg, jpeg, webp, svg)."""
+    base = os.path.join(app.static_folder, "documenti")
+    out = {}
+    if os.path.isdir(base):
+        for f in sorted(os.listdir(base)):
+            stem, _, ext = f.rpartition(".")
+            if ext.lower() in ("png", "jpg", "jpeg", "webp", "svg") and stem:
+                out[_slug(stem)] = f"/static/documenti/{f}?v={int(os.path.getmtime(os.path.join(base, f)))}"
+    return out
+
+
+def immagine_doc(d, imgs):
+    """Immagine piu' specifica per un documento: <tipo>-<banca> > <banca> > <tipo>. La banca si riconosce dentro il nome indicato."""
+    banca = _slug(d.ente)
+    best = None
+    for stem, url in imgs.items():
+        nome, tipo_f = stem, None
+        for t in TIPI_DOC:
+            if stem.startswith(t + "-"):
+                tipo_f, nome = t, stem[len(t) + 1:]
+                break
+        if stem in TIPI_DOC or not banca or nome not in banca and nome.replace("-", "") not in banca.replace("-", ""):
+            continue
+        if tipo_f and tipo_f != d.tipo:
+            continue
+        punti = len(nome) + (1000 if tipo_f else 0)
+        if not best or punti > best[0]:
+            best = (punti, url)
+    return best[1] if best else imgs.get(d.tipo)
+
+
+def nome_doc(d):
+    """Didascalia: per carte e conti 'BANCA - Tipo' (es. FINECO - Carta di debito)."""
+    if d.tipo in ("banc", "cc", "deb", "conto") and (d.ente or "").strip():
+        return f"{d.ente.strip().upper()} - {TIPI_DOC[d.tipo]}"
+    return d.titolo
+
+
+_COMUNI = None
+
+
+def _norm(t):
+    import unicodedata
+    t = unicodedata.normalize("NFKD", t or "").encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", " ", t).strip()
+
+
+@app.route("/api/comuni")
+@login_required
+def api_comuni():
+    """Ricerca di comuni italiani o stati esteri (codice catastale) per il calcolo del codice fiscale."""
+    global _COMUNI
+    if _COMUNI is None:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "comuni.json"), encoding="utf-8") as f:
+            _COMUNI = [(_norm(r[0]), r) for r in json.load(f)]
+    q = _norm(request.args.get("q", ""))
+    if len(q) < 2:
+        return jsonify([])
+    ini, dentro = [], []
+    for n, r in _COMUNI:
+        if n.startswith(q):
+            ini.append(r)
+        elif q in n:
+            dentro.append(r)
+    ris = sorted(ini, key=lambda r: (not r[3], len(r[0]))) + sorted(dentro, key=lambda r: (not r[3], len(r[0])))
+    return jsonify([dict(n=f"{r[0]} ({'estero' if r[2] == 'EE' else r[2]}){'' if r[3] else ' - soppresso'}", c=r[1]) for r in ris[:15]])
+
+
+def _stato_doc(d, oggi=None):
+    """Stato di un documento: giorni alla scadenza e classe (scaduto, urgente <=60 g, presto <=180 g, ok, nd)."""
+    oggi = oggi or date.today()
+    if not d.scadenza:
+        return dict(giorni=None, stato="nd", perc=None)
+    g = (d.scadenza - oggi).days
+    # barra di validita': dal rilascio (se noto, altrimenti una durata tipica) fino alla scadenza
+    anni = {"ci": 10, "pass": 10, "pat": 10, "nau": 10, "ts": 6, "banc": 5, "cc": 5, "deb": 5}.get(d.tipo, 10)
+    inizio = d.rilascio if d.rilascio and d.rilascio < d.scadenza else d.scadenza - timedelta(days=round(365.25 * anni))
+    tot = (d.scadenza - inizio).days or 1
+    perc = max(0, min(100, round((oggi - inizio).days / tot * 100)))
+    return dict(giorni=g, stato="scaduta" if g < 0 else "urgente" if g <= 60 else "presto" if g <= 180 else "ok", perc=perc)
+
+
+def documenti_in_scadenza(uid):
+    oggi = date.today()
+    return [d for d in Documento.query.filter(Documento.user_id == uid, Documento.scadenza.isnot(None),
+                                              Documento.scadenza <= oggi + timedelta(days=60)).order_by(Documento.scadenza)]
+
+
+def _data_doc(v):
+    """Data da un campo date (AAAA-MM-GG) o month (AAAA-MM: vale l'ultimo giorno del mese, come sulle carte)."""
+    v = (v or "").strip()
+    if len(v) == 7:
+        try:
+            a, m = int(v[:4]), int(v[5:7])
+            return date(a, m, _cal.monthrange(a, m)[1])
+        except ValueError:
+            return None
+    return _data(v)
+
+
+@app.route("/documenti")
+@login_required
+def documenti():
+    uid = session["uid"]
+    docs = Documento.query.filter_by(user_id=uid).order_by(Documento.ordine.is_(None), Documento.ordine, Documento.id).all()
+    imgs = immagini_doc()
+    lista = []
+    per_id = {d.id: d for d in docs}
+    carte_di = {}
+    for d in docs:
+        if d.conto_id in per_id and d.tipo in CARTE:
+            carte_di.setdefault(d.conto_id, []).append(nome_doc(d))
+    for d in docs:
+        st = _stato_doc(d)
+        c = per_id.get(d.conto_id) if d.tipo in CARTE else None
+        propria = f"/documenti/{d.id}/immagine?v={hashlib.md5(d.immagine.encode()).hexdigest()[:8]}" if d.immagine else None
+        lista.append(dict(d=d, nome=nome_doc(d), img=propria or immagine_doc(d, imgs), **st, raw=dict(has_img=bool(d.immagine), 
+            id=d.id, tipo=d.tipo, titolo=nome_doc(d), intestatario=d.intestatario or "", nome_p=d.nome_p or "", cognome_p=d.cognome_p or "", numero=d.numero or "", ente=d.ente or "",
+            rilascio=d.rilascio.isoformat() if d.rilascio else "", scadenza=d.scadenza.isoformat() if d.scadenza else "",
+            iban=d.iban or "", nota=d.nota or "", colore=d.colore or "", giorni=st["giorni"], stato=st["stato"], perc=st.get("perc"), conto_id=c.id if c else "",
+            conto=dict(titolo=nome_doc(c), intestatario=c.intestatario or "", iban=c.iban or "", ente=c.ente or "", numero=c.numero or "") if c else None,
+            carte=carte_di.get(d.id, []))))
+    gruppi = [("Documenti", "doc", ("ci", "pass", "pat", "nau", "ts", "cf", "altro")), ("Carte e dati bancari", "ban", ("banc", "cc", "deb", "conto"))]
+    return render_template("documenti.html", gruppi=[(t, k, [x for x in lista if x["d"].tipo in tp]) for t, k, tp in gruppi],
+                           tipi=TIPI_DOC, colori=COLORI_DOC, conti=[x for x in docs if x.tipo == "conto"], n=len(lista), nxt="/documenti")
+
+
+def _tre_cf(t, nome=False):
+    import unicodedata
+    t = re.sub(r"[^A-Z]", "", unicodedata.normalize("NFD", (t or "").upper()).encode("ascii", "ignore").decode())
+    c = [x for x in t if x not in "AEIOU"]
+    v = [x for x in t if x in "AEIOU"]
+    if nome and len(c) >= 4:
+        c = [c[0], c[2], c[3]]
+    return "".join(c + v + ["X", "X", "X"])[:3]
+
+
+def verifica_cf(cod, nome, cognome):
+    """Controlla un codice fiscale (anche omocodico) rispetto a nome e cognome. Ritorna il messaggio d'errore, o '' se coerente."""
+    if not nome.strip() or not cognome.strip():
+        return "Per il codice fiscale inserisci nome e cognome."
+    if not re.fullmatch(r"[A-Z]{6}[0-9LMNPQRSTUV]{2}[ABCDEHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]", cod):
+        return "Il codice fiscale non è valido: deve avere 16 caratteri (6 lettere, 2 cifre, 1 lettera, 2 cifre, 1 lettera, 3 cifre, 1 lettera)."
+    disp = {c: v for c, v in zip("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", [1, 0, 5, 7, 9, 13, 15, 17, 19, 21, 1, 0, 5, 7, 9, 13, 15, 17, 19, 21, 2, 4, 18, 20, 11, 3, 6, 8, 12, 14, 16, 10, 22, 25, 24, 23])}
+    tot = sum(disp[c] if i % 2 == 0 else (int(c) if c.isdigit() else ord(c) - 65) for i, c in enumerate(cod[:15]))
+    if chr(65 + tot % 26) != cod[15]:
+        return "Il codice fiscale non è valido: l'ultima lettera di controllo non torna."
+    if cod[:3] != _tre_cf(cognome):
+        return "Il cognome non corrisponde al codice fiscale (le prime 3 lettere non coincidono)."
+    if cod[3:6] != _tre_cf(nome, True):
+        return "Il nome non corrisponde al codice fiscale (le lettere 4-6 non coincidono)."
+    g = int(cod[9:11].translate(str.maketrans("LMNPQRSTUV", "0123456789")))
+    if not (1 <= g <= 31 or 41 <= g <= 71):
+        return "Il giorno di nascita nel codice fiscale non è valido."
+    return ""
+
+
+def iban_ok(v):
+    v = "".join((v or "").split()).upper()
+    if not re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{11,30}", v) or (v.startswith("IT") and len(v) != 27):
+        return False
+    return int("".join(str(int(c, 36)) for c in v[4:] + v[:4])) % 97 == 1
+
+
+def verifica_doc(f, tipo):
+    """Controlli di coerenza sul modulo documenti (gli stessi della pagina). Ritorna il messaggio d'errore o ''."""
+    nome, cogn = f.get("nome_p", "").strip(), f.get("cognome_p", "").strip()
+    if not nome or not cogn:
+        return "Inserisci nome e cognome."
+    if not all(re.fullmatch(r"[^\W\d_][^\d_]*", x) and not re.search(r"[^\w' .\-]", x) for x in (nome, cogn)):
+        return "Nome e cognome devono contenere solo lettere."
+    num = f.get("numero", "").strip()
+    if tipo == "conto":
+        if not f.get("ente", "").strip():
+            return "Indica la banca."
+        if not iban_ok(f.get("iban", "")):
+            return "L'IBAN non è valido."
+    elif tipo in CARTE:
+        if not f.get("ente", "").strip():
+            return "Indica la banca."
+        if not re.fullmatch(r"\d{12,19}", re.sub(r"[\s.\-]", "", num)):
+            return "Il numero della carta deve avere da 12 a 19 cifre."
+        if f.get("c_iban", "").strip() and f.get("nuovo_conto") == "1" and not iban_ok(f.get("c_iban", "")):
+            return "L'IBAN del conto non è valido."
+    elif tipo not in ("altro", "cf"):
+        if len(num) < 4:
+            return "Il numero del documento non sembra valido."
+    return ""
+
+
+@app.route("/documenti/salva", methods=["POST"])
+@login_required
+def documento_salva():
+    uid = session["uid"]
+    tipo = request.form.get("tipo", "altro")
+    if tipo not in TIPI_DOC:
+        tipo = "altro"
+    ente = request.form.get("ente", "").strip()[:120]
+    if tipo == "altro":
+        titolo = request.form.get("titolo", "").strip()[:120] or TIPI_DOC[tipo]
+    elif tipo in ("banc", "cc", "deb", "conto") and ente:
+        titolo = f"{ente.upper()} - {TIPI_DOC[tipo]}"[:120]
+    else:
+        titolo = TIPI_DOC[tipo]
+    err = verifica_doc(request.form, tipo)
+    if err:
+        flash(err)
+        return redirect("/documenti")
+    if tipo == "cf":
+        ente = ""
+        err = verifica_cf("".join(request.form.get("numero", "").split()).upper(), request.form.get("nome_p", ""), request.form.get("cognome_p", ""))
+        if err:
+            flash(err)
+            return redirect("/documenti")
+    d = None
+    if request.form.get("id", "").isdigit():
+        d = Documento.query.filter_by(id=int(request.form["id"]), user_id=uid).first()
+    nuovo = d is None
+    if nuovo:
+        d = Documento(user_id=uid)
+        db.session.add(d)
+    d.tipo, d.titolo = tipo, titolo
+    d.nome_p = request.form.get("nome_p", "").strip()[:60]
+    d.cognome_p = request.form.get("cognome_p", "").strip()[:60]
+    d.intestatario = f"{d.nome_p} {d.cognome_p}".strip()
+    d.numero = request.form.get("numero", "").strip()[:60]
+    if tipo == "cf":
+        d.numero = "".join(d.numero.split()).upper()[:16]
+    d.ente = ente
+    d.rilascio = None if tipo in ("banc", "cc", "deb", "conto", "cf") else _data_doc(request.form.get("rilascio"))
+    d.scadenza = None if tipo in ("conto", "cf") else _data_doc(request.form.get("scadenza"))
+    d.iban = "".join(request.form.get("iban", "").split()).upper()[:40] if tipo == "conto" else ""
+    d.nota = request.form.get("nota", "").strip()[:500]
+    if tipo not in CARTE or request.form.get("rimuovi_img") == "1":
+        d.immagine = d.img_tipo = None
+    f = request.files.get("immagine")
+    if f and tipo in CARTE:
+        raw = f.read(700_001)
+        mime = ("image/jpeg" if raw[:3] == b"\xff\xd8\xff" else "image/png" if raw[:8] == b"\x89PNG\r\n\x1a\n"
+                else "image/webp" if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP" else None)
+        if raw and not mime:
+            flash("Immagine non valida: usa un file JPG, PNG o WebP.")
+        elif len(raw) > 700_000:
+            flash("Immagine troppo grande (massimo 700 KB).")
+        elif raw:
+            d.immagine, d.img_tipo = base64.b64encode(raw).decode(), mime
+    d.conto_id = None
+    if tipo in CARTE:
+        cid = request.form.get("conto_id", "")
+        c = Documento.query.filter_by(id=int(cid), user_id=uid, tipo="conto").first() if cid.isdigit() else None
+        iban_n = "".join(request.form.get("c_iban", "").split()).upper()[:40]
+        c_int = request.form.get("c_intestatario", "").strip()[:120]
+        c_num = request.form.get("c_numero", "").strip()[:60]
+        if request.form.get("nuovo_conto") == "1" and (iban_n or c_int or c_num):
+            c = Documento(user_id=uid, tipo="conto", titolo=(TIPI_DOC["conto"] + (" " + ente if ente else ""))[:120],
+                          intestatario=c_int or d.intestatario, ente=ente, iban=iban_n, numero=c_num)
+            db.session.add(c)
+            db.session.flush()
+        d.conto_id = c.id if c else None
+    db.session.commit()
+    flash("Documento inserito." if nuovo else "Documento aggiornato.")
+    return redirect("/documenti")
+
+
+@app.route("/documenti/ordine", methods=["POST"])
+@login_required
+def documenti_ordine():
+    ids = [int(x) for x in request.form.get("ids", "").split(",") if x.isdigit()]
+    mie = {d.id: d for d in Documento.query.filter(Documento.user_id == session["uid"], Documento.id.in_(ids))}
+    for i, x in enumerate(ids):
+        if x in mie:
+            mie[x].ordine = i
+    db.session.commit()
+    return jsonify(ok=True)
+
+
+@app.route("/documenti/<int:id>/immagine")
+@login_required
+def documento_immagine(id):
+    d = Documento.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    if not d.immagine:
+        abort(404)
+    r = send_file(io.BytesIO(base64.b64decode(d.immagine)), mimetype=d.img_tipo or "image/jpeg")
+    r.headers["Cache-Control"] = "private, max-age=86400"
+    return r
+
+
+@app.route("/documenti/<int:id>/elimina", methods=["POST"])
+@login_required
+def documento_elimina(id):
+    d = Documento.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    Documento.query.filter_by(user_id=session["uid"], conto_id=d.id).update({"conto_id": None})
+    db.session.delete(d)
+    db.session.commit()
+    flash("Documento eliminato.")
+    return redirect("/documenti")
 
 
 @app.route("/agenda")
@@ -2060,7 +2416,7 @@ def _agenda(vista):
     rif = _data(request.args.get("data")) or date.today()
     oggi = date.today()
     nomi = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
-    ctxd = dict(colori=["#9333ea"] + COLORI_IMPEGNO, vista=vista, oggi=oggi, nomi=nomi, mesi_brevi=[m[:3] for m in MESI_LUNGHI], data=rif.isoformat(),
+    ctxd = dict(colori=["#9333ea"] + COLORI_IMPEGNO, colori_sc=[""] + COLORI_IMPEGNO, vista=vista, oggi=oggi, nomi=nomi, mesi_brevi=[m[:3] for m in MESI_LUNGHI], data=rif.isoformat(),
                 alert=alert_scadenze(uid))
     if vista == "sett":
         lun = rif - timedelta(days=rif.weekday())
@@ -2107,6 +2463,9 @@ def _agenda(vista):
             if s.data_pagamento and s.importo:
                 per_anno[s.data_pagamento.year] = per_anno.get(s.data_pagamento.year, 0) + s.importo
         note = sorted([s for s in tutti if s.tipo == "nota"], key=lambda s: (s.data_pagamento or date.min, s.id), reverse=True)
+        attive = [v for v in voci if v["stato"] not in ("chiusa", "nd") and v["giorni"] is not None]
+        prossima = min((v for v in attive if v["giorni"] >= 0), key=lambda v: v["giorni"], default=None)
+        ctxd.update(prossima=prossima, n_attive=len(attive), pagato_anno=dict(per_anno).get(oggi.year, 0), anno_corr=oggi.year)
         ctxd.update(voci=voci, note=note, per_anno=sorted(per_anno.items(), reverse=True), suggerimenti=SUGGERIMENTI_SCADENZE)
     return render_template("agenda.html", **ctxd)
 
@@ -2180,6 +2539,8 @@ def scadenza_salva():
     s.preavviso = int(pre) if pre and 30 <= pre <= 365 else 30
     s.nota = request.form.get("nota", "").strip()[:500]
     s.chiusa = False
+    col = request.form.get("colore", "")
+    s.colore = col if col in COLORI_IMPEGNO else ""
     nuova = s.id is None
     s.tipo = "nota" if nota_sola else "scad"
     db.session.commit()

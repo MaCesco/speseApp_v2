@@ -1,0 +1,360 @@
+{% extends "base.html" %}{% block c %}{% from "_ic.html" import ic %}
+<style>
+dialog{border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--tx);padding:22px;width:min(540px,94vw);max-height:92vh;overflow:auto}
+dialog::backdrop{background:rgba(10,15,30,.55)}
+dialog h2{margin:0 0 14px}
+.df{display:grid;gap:12px}.df label{display:grid;gap:4px;font-size:14px;font-weight:700;color:var(--mu)}.df label input,.df label select,.df label textarea{font-weight:400;color:var(--tx)}
+.df .r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.df .pal{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.df .pal::before{content:"Colore";font-size:14px;font-weight:700;color:var(--mu);width:100%;margin-bottom:-4px}
+.df .pal label{display:block;position:relative;margin:0}.pal input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.pal span{display:block;width:34px;height:34px;border-radius:50%;background:var(--sw);cursor:pointer;border:3px solid var(--card);box-shadow:0 0 0 1px var(--line)}
+.pal input:checked+span{box-shadow:0 0 0 3px var(--sw)}.pal input:focus-visible+span{outline:2px solid var(--tx);outline-offset:3px}
+.df .bb{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px}
+.df .bb button{width:auto;padding:10px 20px;min-height:44px;border-radius:12px}.df .bb .x{background:var(--bg);color:var(--mu)}.df .bb .dl{background:var(--r);color:#fff;margin-right:auto}
+.pal span.nc{background:linear-gradient(135deg,var(--card) 44%,var(--mu) 46% 54%,var(--card) 56%)}
+.dtop{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 6px}
+.dtop h1{margin:0}.dbt{display:flex;gap:10px;flex-wrap:wrap}.dbt button{width:auto;padding:10px 20px}.dbt .b2{background:#4f46e5}[data-theme=dark] .dbt .b2{background:#6366f1}
+.dsec{display:flex;align-items:center;gap:10px;margin:26px 0 12px;font-size:19px;font-family:'Bricolage Grotesque',sans-serif}
+.dsec small{color:var(--mu);font:600 14px 'DM Sans',sans-serif}
+.pb{height:9px;border-radius:99px;background:var(--bg);overflow:hidden;margin-top:4px;border:1px solid var(--line)}.pb i{display:block;height:100%;border-radius:99px;background:var(--g)}
+.pb.presto i{background:#f59e0b}.pb.urgente i,.pb.scaduta i{background:var(--r)}
+.pbl{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--mu);margin-top:2px}
+.dgrid{position:relative}
+.dpan{border-radius:26px;padding:18px 20px 22px;margin:22px 0;border:2px solid var(--line)}
+.p-doc{background:color-mix(in srgb,#059669 9%,var(--bg));border-color:color-mix(in srgb,#059669 38%,var(--line))}
+.p-ban{background:color-mix(in srgb,#4f46e5 9%,var(--bg));border-color:color-mix(in srgb,#4f46e5 38%,var(--line));margin-top:34px;box-shadow:0 -14px 0 -12px color-mix(in srgb,#4f46e5 30%,transparent)}
+.dph{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.dph h2{margin:0;font-size:19px;font-family:'Bricolage Grotesque',sans-serif}.dph h2 small{color:var(--mu);font:600 14px 'DM Sans',sans-serif}.dph>small{font-size:13px}
+.dvuoto{margin:6px 2px 2px}
+.dguida{margin:6px 0 24px;padding:12px 16px;border-radius:16px;background:var(--card);border:1px solid var(--line);font-size:14px}.dguida summary{cursor:pointer;font-weight:700;color:var(--mu)}.dguida ul{margin:8px 0;padding-left:20px;display:grid;gap:6px}.dguida code{background:var(--bg);border-radius:6px;padding:1px 6px;font-size:13px}.dguida p{margin:8px 0}
+.dt{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.dt img{-webkit-user-drag:none;user-drag:none;pointer-events:none}
+.dt.ph{opacity:.35;outline:2px dashed color-mix(in srgb,var(--in) 70%,transparent);outline-offset:-2px;box-shadow:none}
+.dt.dragclone{position:fixed;z-index:60;margin:0;pointer-events:none;transform:rotate(1.6deg) scale(1.04);box-shadow:0 22px 50px rgba(0,0,0,.35);opacity:.97;transition:none}
+body.dnd,body.dnd *{cursor:grabbing!important;user-select:none!important}
+.dt{touch-action:manipulation}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:22px}
+.dt{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;cursor:pointer;padding:14px;border-radius:22px;background:var(--card);border:1px solid color-mix(in srgb,var(--tx) 22%,var(--card));box-shadow:0 4px 14px rgba(15,23,42,.12);transition:transform .15s,box-shadow .15s}
+.dt:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(15,23,42,.22)}
+.dt:focus-visible{outline:3px solid var(--in);outline-offset:3px}
+[data-theme=dark] .dt{box-shadow:none;border-color:var(--line)}
+.slot{display:flex;align-items:center;justify-content:center;aspect-ratio:1.586}
+.cap{display:flex;flex-direction:column;gap:6px;padding:0 4px 2px}
+.cap b{font:800 17px 'Bricolage Grotesque',sans-serif;overflow-wrap:anywhere}
+.cap span.mu{font-size:14px}
+.st{display:inline-block;align-self:flex-start;border-radius:99px;padding:3px 11px;font-size:13px;font-weight:700;background:var(--bg);color:var(--mu)}
+.st.scaduta,.st.urgente{background:color-mix(in srgb,var(--r) 16%,var(--card));color:var(--rt)}
+.st.presto{background:color-mix(in srgb,#f59e0b 22%,var(--card));color:#b45309}[data-theme=dark] .st.presto{color:#fbbf24}
+.st.ok{background:color-mix(in srgb,var(--g) 16%,var(--card));color:var(--gt)}
+/* ---- documenti stilizzati ---- */
+.slot .dw{height:100%}.dimg{display:block;width:100%;height:100%;object-fit:cover;border-radius:3.5cqw;box-shadow:0 1.2cqw 3cqw rgba(0,0,0,.28)}.dimg.port{width:auto;max-width:100%;aspect-ratio:.72}
+.dw:has(>.dimg){aspect-ratio:1.586}
+.dw{container-type:inline-size;width:100%;display:flex;align-items:center;justify-content:center}
+.dc{--cc:#64748b;position:relative;width:100%;aspect-ratio:1.586;border-radius:6cqw;color:#fff;overflow:hidden;
+ background:linear-gradient(135deg,color-mix(in srgb,var(--cc) 72%,#fff),var(--cc) 55%,color-mix(in srgb,var(--cc) 78%,#000));box-shadow:0 1.2cqw 3cqw rgba(0,0,0,.28),inset 0 0 0 .4cqw rgba(255,255,255,.18);display:flex;flex-direction:column;padding:5cqw 6cqw;gap:3cqw;text-align:left}
+.dc::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.28) 0,rgba(255,255,255,0) 38%,rgba(255,255,255,0) 62%,rgba(255,255,255,.12) 100%);pointer-events:none}
+.dc .hd{display:flex;justify-content:space-between;align-items:center;font:800 4.6cqw 'Bricolage Grotesque',sans-serif;letter-spacing:.08em;text-transform:uppercase;opacity:.95}
+.dc .hd small{font:600 3.2cqw 'DM Sans',sans-serif;letter-spacing:.04em;opacity:.8}
+.dc .bd{display:flex;gap:5cqw;flex:1;min-height:0;align-items:stretch}
+.dc .ft{width:24cqw;border-radius:2.4cqw;background:rgba(255,255,255,.88);display:grid;place-items:end center;overflow:hidden;align-self:center;aspect-ratio:.8}
+.dc .ft svg{width:78%;height:auto;fill:color-mix(in srgb,var(--cc) 55%,#94a3b8)}
+.dc .ln{display:flex;flex-direction:column;justify-content:center;gap:.6cqw;min-width:0;flex:1}
+.dc .ln small{font-size:2.9cqw;opacity:.78;text-transform:uppercase;letter-spacing:.06em}
+.dc .ln b{font:700 5cqw 'DM Sans',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:1.2cqw}
+.dc .chip{width:13cqw;height:10cqw;border-radius:2cqw;background:linear-gradient(135deg,#fde68a,#d4a017 60%,#fbe7a1);box-shadow:inset 0 0 0 .35cqw rgba(0,0,0,.25);position:relative}
+.dc .chip::before{content:"";position:absolute;inset:2.2cqw .8cqw;border-top:.35cqw solid rgba(0,0,0,.28);border-bottom:.35cqw solid rgba(0,0,0,.28)}
+.dc .nm{font:700 6.2cqw 'DM Sans',sans-serif;letter-spacing:.12em;text-shadow:0 .3cqw .8cqw rgba(0,0,0,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc .rw{display:flex;justify-content:space-between;align-items:flex-end;gap:3cqw;font-size:3.6cqw}
+.dc .rw b{font:700 4.4cqw 'DM Sans',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dc .rw span{opacity:.8;font-size:2.9cqw;display:block;text-transform:uppercase;letter-spacing:.05em}
+.dc .lg{font:800 4.4cqw 'Bricolage Grotesque',sans-serif;letter-spacing:.1em;opacity:.95;text-transform:uppercase}
+.dc .cl{display:flex;justify-content:space-between;align-items:center}
+.dc .nfc{width:7cqw;height:7cqw;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;opacity:.9}
+.dc.pp{container-type:inline-size;width:44%;aspect-ratio:.72;margin:auto;border-radius:3cqw;align-items:center;justify-content:space-between;text-align:center;padding:9cqw 6cqw 8cqw;gap:3cqw;
+ background:linear-gradient(150deg,color-mix(in srgb,var(--cc) 82%,#fff),var(--cc) 50%,color-mix(in srgb,var(--cc) 75%,#000))}
+.dc.pp .lg{font-size:8.5cqw;letter-spacing:.14em}
+.dc.pp .em{width:46cqw;height:46cqw;border-radius:50%;border:1cqw solid rgba(250,225,150,.9);display:grid;place-items:center;color:#f3d98b}
+.dc.pp .em svg{width:70%;height:70%;fill:none;stroke:currentColor;stroke-width:2.2}
+.dc.pp .nm{font-size:7.5cqw;letter-spacing:.08em;color:#f3d98b}
+.dc.pp small{font-size:6cqw;letter-spacing:.14em;text-transform:uppercase;opacity:.85;color:#f3d98b}
+.dc.cfc .cfn{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;font-size:5.4cqw}.dc.cfc .bcode{position:absolute;left:6cqw;right:6cqw;bottom:4cqw;height:5cqw;width:auto;opacity:.55;color:#fff}.dc.cfc .bd{padding-bottom:6cqw}
+.dc.cn .bk{width:11cqw;height:11cqw;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dc.id{padding:0;gap:0;color:#0b3a46;background:linear-gradient(135deg,color-mix(in srgb,var(--cc) 18%,#fff),color-mix(in srgb,var(--cc) 38%,#fff) 70%,color-mix(in srgb,var(--cc) 52%,#fff))}
+.dc.id::after{background:linear-gradient(115deg,rgba(255,255,255,.45) 0,rgba(255,255,255,0) 40%)}
+.dc.id .wv{position:absolute;left:0;top:0;width:100%;height:22%;fill:var(--cc);opacity:.9}
+.dc.id .idh{position:relative;z-index:1;padding:6cqw 6cqw 0;color:#fff;display:flex;align-items:baseline;gap:2cqw}
+.dc.id .idh b{font:800 5.2cqw 'Bricolage Grotesque',sans-serif;letter-spacing:.04em;text-transform:uppercase}.dc.id .idh i{font-size:3.4cqw;opacity:.85}
+.dc.id .idb{position:relative;z-index:1;display:flex;gap:5cqw;padding:5cqw 6cqw 0;flex:1;min-height:0}
+.dc.id .idp{width:30cqw;flex:none;border-radius:2.4cqw;background:linear-gradient(180deg,#e6f6f5,#bfe7e4);overflow:hidden;display:grid;align-items:end;box-shadow:inset 0 0 0 .4cqw rgba(255,255,255,.8);align-self:flex-end;height:82%}
+.dc.id .idp svg{width:100%;height:auto;display:block}
+.dc.id .idf{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:7cqw}
+.dc.id .idf small{display:block;font-size:2.8cqw;text-transform:uppercase;letter-spacing:.05em;opacity:.7}
+.dc.id .idf b{font:700 4.6cqw 'DM Sans',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-bottom:.35cqw dotted rgba(11,58,70,.35);margin-bottom:1.6cqw;padding-bottom:.6cqw}
+.dc.id .idr{display:flex;align-items:flex-end;justify-content:space-between;gap:3cqw}.dc.id .idr b{border:0;margin:0}
+.dc.id .sg{width:17cqw;height:7cqw;flex:none;opacity:.75}
+.dc.id .idz{position:absolute;left:0;right:0;bottom:0;height:3.2cqw;display:flex;z-index:1}.dc.id .idz i{flex:1;background:var(--cc)}.dc.id .idz i+i{background:color-mix(in srgb,var(--cc) 40%,#fff)}.dc.id .idz{height:3.6cqw}
+@media(max-width:600px){.dgrid{grid-template-columns:1fr}}
+/* dettaglio */
+#dDet,#dDoc{width:min(560px,94vw)}
+#dDet .art{margin:0 0 16px}
+#dDet dl{display:grid;grid-template-columns:auto 1fr;gap:0 16px;margin:0}
+#dDet dt{color:var(--mu);display:flex;align-items:center;min-height:46px;padding:4px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+#dDet dd{margin:0;min-height:46px;padding:4px 0;border-bottom:1px solid var(--line);font-weight:700;display:flex;gap:8px;align-items:center;justify-content:flex-end;text-align:right;overflow-wrap:anywhere}
+#dDet dd .cp{width:auto;min-height:32px;padding:3px 11px;font-size:13px;border-radius:9px;flex:0 0 auto}
+#dDet .azs{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+#dDet .azs button,#dDet .azs form button{width:auto;padding:9px 18px}
+#dDet .azs .del{background:color-mix(in srgb,var(--r) 14%,var(--card));color:var(--rt)}
+.avv{border-radius:12px;padding:8px 12px;margin-top:10px;font-size:14px;background:color-mix(in srgb,var(--in) 10%,var(--card));color:var(--mu)}
+.nv2{display:none}
+[hidden]{display:none!important}
+#fDoc .cimg{display:grid;gap:8px}#fDoc .pv{display:flex;align-items:center;gap:12px;min-height:64px}#fDoc .pv img{width:110px;aspect-ratio:1.586;object-fit:contain;border-radius:8px;background:var(--bg);border:1px solid var(--line)}#fDoc .rimg{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#fDoc .rimg .fl{display:inline-block;cursor:pointer;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:9px 16px;font-weight:700;font-size:14px}#fDoc .rimg .fl input{display:none}#fDoc .rimg button{width:auto;padding:9px 16px}#fDoc .cfw{display:grid;gap:10px}#fDoc .ck{display:flex!important;grid-template-columns:none;align-items:center;gap:10px;font-size:15px;color:var(--tx);font-weight:600;cursor:pointer}#fDoc .ck input{width:20px;height:20px;min-height:0;accent-color:var(--in)}#fDoc button[type=submit]:disabled{background:#94a3b8!important;color:#fff;opacity:.55;cursor:not-allowed;box-shadow:none}#fDoc .cferr{padding:10px 12px;border-radius:12px;background:#fee2e2;color:#991b1b;font-size:14px;font-weight:600;border:1px solid #fca5a5}:root[data-theme=dark] #fDoc .cferr,body.dark #fDoc .cferr{background:#450a0a;color:#fecaca;border-color:#991b1b}#fDoc .cfres{font:700 17px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;padding:10px 12px;border-radius:12px;background:var(--card);border:1px dashed var(--line);text-align:center;color:var(--mu)}#fDoc .cfres.ok{color:var(--gt);border-style:solid}#fDoc .cassoc{display:grid;gap:10px}#fDoc .cassoc>button{width:auto;justify-self:start;padding:8px 16px}#fDoc .nc2{display:grid;gap:10px;padding:12px;border-radius:14px;background:color-mix(in srgb,var(--in) 8%,var(--card));border:1px solid var(--line)}#fDoc .r2{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr}
+</style>
+
+<div class="dtop"><h1 class="ph">{{ ic('doc') }}Documenti</h1><div class="dbt"><button type="button" id="nuovoDoc">+ Documento</button><button type="button" id="nuovaBanca" class="b2">+ Carte / dati bancari</button></div></div>
+<p class="mu" style="margin:0 0 4px;font-size:14px">Tocca un documento per vedere tutti i dati.</p>
+
+
+
+{% macro mask(n) %}{{ ('•••• ' ~ n[-4:]) if n|length > 4 else n }}{% endmacro %}
+{% macro mm(d) %}{{ '%02d/%02d'|format(d.month, d.year % 100) }}{% endmacro %}
+{% set DEF = {'ci':'#0ea5a4','pass':'#7f1d1d','pat':'#be185d','nau':'#0369a1','ts':'#15803d','cf':'#0d9488','banc':'#0f766e','cc':'#1e293b','deb':'#b45309','conto':'#4338ca','altro':'#64748b'} %}
+{% macro art(d) %}{% set c = d.colore or DEF[d.tipo] %}{% set t = d.tipo %}<div class="dw">
+{% if d.img %}<img class="dimg" src="{{ d.img }}" alt="{{ tipi[t] }}">
+{% elif t == 'pass' %}<div class="dc pp" style="--cc:{{ c }}"><div class="lg">Passaporto</div><div class="em"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div><div><small>{{ d.intestatario or d.titolo }}</small><div class="nm">{{ mask(d.numero) }}</div></div></div>
+{% elif t == 'ci' %}<div class="dc id" style="--cc:{{ c }}"><svg class="wv" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 0H100V9C80 16 62 4 40 10C22 15 10 8 0 12Z"/></svg>
+<div class="idh"><b>Carta d'identità</b><i>Identity card</i></div>
+<div class="idb"><div class="idp"><svg viewBox="0 0 60 72"><rect width="60" height="72" fill="none"/><path d="M8 72c0-14 9-20 22-20s22 6 22 20z" fill="#64748b"/><path d="M24 50l6 9 6-9z" fill="#fff"/><rect x="26" y="40" width="8" height="12" rx="3" fill="#e8b98e"/><ellipse cx="30" cy="28" rx="12" ry="14" fill="#f2c9a0"/><path d="M17 26c-1-12 7-17 14-17s14 5 13 17c-3-5-6-8-13-8s-11 3-14 8z" fill="#7a3f1d"/></svg></div>
+<div class="idf"><small>Cognome e nome</small><b>{{ d.intestatario or '—' }}</b><small>Numero</small><b>{{ mask(d.numero) if d.numero else '—' }}</b><div class="idr"><div><small>Scadenza</small><b>{{ d.scadenza|data_it if d.scadenza else '—' }}</b></div><svg class="sg" viewBox="0 0 60 24"><path d="M3 18C10 4 14 2 16 8c2 8-6 14-2 12 6-3 8-12 14-10 4 1-2 9 2 8 5-1 6-6 12-6 3 0 4 2 9 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div></div></div>
+<div class="idz"><i></i><i></i></div></div>
+{% elif t == 'cf' %}<div class="dc cfc" style="--cc:{{ c }}"><div class="hd"><span>Codice fiscale</span><small>ITALIA</small></div><div class="bd"><div class="ln" style="justify-content:flex-end"><small>Titolare</small><b>{{ d.intestatario or '—' }}</b><small>Codice fiscale</small><b class="cfn">{{ d.numero or '— — — — —' }}</b></div></div><svg class="bcode" viewBox="0 0 120 14" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0v14M3 0v14M5 0v14M9 0v14M11 0v14M15 0v14M17 0v14M22 0v14M24 0v14M28 0v14M31 0v14M33 0v14M38 0v14M40 0v14M45 0v14M47 0v14M52 0v14M54 0v14M58 0v14M61 0v14M63 0v14M68 0v14M70 0v14M75 0v14M77 0v14M82 0v14M85 0v14M87 0v14M92 0v14M94 0v14M99 0v14M101 0v14M106 0v14M108 0v14M113 0v14M116 0v14M119 0v14" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></div>
+{% elif t in ('banc','cc','deb') %}<div class="dc" style="--cc:{{ c }}"><div class="cl"><span class="lg">{{ 'Bancomat' if t == 'banc' else 'Debito' if t == 'deb' else 'Credito' }}</span><svg class="nfc" viewBox="0 0 24 24"><path d="M8 7c2 3 2 7 0 10M12 5c3.500 4 3.500 10 0 14M16 3c4.500 5 4.500 13 0 18"/></svg></div><div class="chip"></div><div class="nm">{% if d.numero %}{{ ('•••• •••• •••• ' ~ d.numero[-4:]) if d.numero|length > 4 else d.numero }}{% else %}•••• •••• •••• ••••{% endif %}</div><div class="rw"><div style="min-width:0"><span>Intestatario</span><b>{{ d.intestatario or '—' }}</b></div><div style="text-align:right"><span>Scade</span><b>{{ mm(d.scadenza) if d.scadenza else '--/--' }}</b></div></div></div>
+{% elif t == 'conto' %}<div class="dc cn" style="--cc:{{ c }}"><div class="cl"><span class="lg">Conto corrente</span><svg class="bk" viewBox="0 0 24 24"><path d="M3 10l9-6 9 6M5 10v8M9.500 10v8M14.500 10v8M19 10v8M3 20h18"/></svg></div><div style="flex:1"></div><div class="nm" style="font-size:5.4cqw">{% if d.iban %}{{ d.iban[:4] }} •••• •••• {{ d.iban[-4:] }}{% else %}IBAN ••••{% endif %}</div><div class="rw"><div style="min-width:0"><span>Intestatario</span><b>{{ d.intestatario or '—' }}</b></div><div style="text-align:right;min-width:0"><span>Banca</span><b>{{ d.ente or '—' }}</b></div></div></div>
+{% else %}<div class="dc" style="--cc:{{ c }}"><div class="hd"><span>{{ {'ci':"Carta d'identità",'pat':'Patente di guida','nau':'Patente nautica','ts':'Tessera sanitaria','altro':d.titolo}[t] }}</span><small>{{ 'ID' if t == 'ci' else 'DRIVING' if t == 'pat' else 'BOAT' if t == 'nau' else 'SALUTE' if t == 'ts' else 'DOC' }}</small></div><div class="bd"><div class="ft"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.500" r="4.500"/><path d="M3 24c0-5.500 4-9 9-9s9 3.500 9 9z"/></svg></div><div class="ln"><small>Titolare</small><b>{{ d.intestatario or '—' }}</b><small>Numero</small><b>{{ mask(d.numero) if d.numero else '—' }}</b><small>Scadenza</small><b>{{ d.scadenza|data_it if d.scadenza else '—' }}</b></div></div></div>
+{% endif %}</div>{% endmacro %}
+
+{% for titolo, chiave, lst in gruppi %}
+<section class="dpan p-{{ chiave }}"><div class="dph"><h2>{{ titolo }} <small>({{ lst|length }})</small></h2></div>
+{% if lst %}<div class="dgrid">{% for x in lst %}{% set d = x.d %}
+<button type="button" class="dt" data-id="{{ d.id }}" data-d='{{ x.raw|tojson }}' aria-label="Apri {{ x.nome }}">
+<div class="slot art">{{ art({'tipo': d.tipo, 'titolo': d.titolo, 'intestatario': d.intestatario, 'numero': d.numero, 'ente': d.ente, 'scadenza': d.scadenza, 'iban': d.iban, 'colore': d.colore, 'img': x.img}) }}</div>
+<div class="cap"><b>{{ x.nome }}</b>{% if d.intestatario %}<span class="mu">{{ d.intestatario }}</span>{% endif %}
+{% if x.giorni is none %}<span class="st">Senza scadenza</span>{% elif x.giorni < 0 %}<span class="st scaduta">Scaduto da {{ -x.giorni }} g</span>{% elif x.giorni == 0 %}<span class="st scaduta">Scade oggi</span>{% elif x.giorni <= 180 %}<span class="st {{ x.stato }}">Scade tra {{ x.giorni }} g · {{ d.scadenza|data_it }}</span>{% else %}<span class="st ok">Valido fino al {{ d.scadenza|data_it }}</span>{% endif %}{% if x.perc is not none %}<div class="pb {{ x.stato }}"><i style="width:{{ x.perc }}%"></i></div><div class="pbl"><span>{{ d.rilascio|data_it if d.rilascio else '' }}</span><span>{{ d.scadenza|data_it }}</span></div>{% endif %}</div>
+</button>{% endfor %}</div>{% else %}<p class="mu dvuoto">{{ 'Nessun documento ancora: usa «+ Documento».' if chiave == 'doc' else 'Nessuna carta o conto ancora: usa «+ Carte / dati bancari».' }}</p>{% endif %}
+</section>{% endfor %}
+
+<details class="dguida"><summary>Immagini da cartella (opzionale)</summary>
+<p>Oltre al caricamento dal modulo, puoi mettere le immagini nella cartella <code>static/documenti/</code> del progetto, in formato <code>png</code>, <code>jpg</code>, <code>webp</code> o <code>svg</code>. Il <b>nome del file</b> decide dove viene usata:</p>
+<ul>
+<li><b>Documenti:</b> <code>ci</code> carta d'identità · <code>pass</code> passaporto · <code>pat</code> patente · <code>nau</code> patente nautica · <code>ts</code> tessera sanitaria · <code>cf</code> codice fiscale · <code>altro</code> altro documento. Esempio: <code>ci.png</code></li>
+<li><b>Carte e conti, per banca:</b> <code>tipo-banca.png</code>, con tipo = <code>banc</code> bancomat · <code>cc</code> carta di credito · <code>deb</code> carta di debito · <code>conto</code> conto corrente. Esempi: <code>banc-intesa.png</code>, <code>cc-fineco.png</code>, <code>deb-mediolanum.png</code></li>
+<li><b>Tutte le carte di una banca:</b> solo il nome della banca, per esempio <code>intesa.png</code></li>
+<li><b>Una carta di quel tipo, qualunque banca:</b> solo il tipo, per esempio <code>cc.png</code></li>
+</ul>
+<p class="mu">Il nome della banca va in minuscolo, senza spazi né accenti (al posto degli spazi il trattino) e basta una parte del nome scritto nel campo «Banca» della carta: per «Intesa Sanpaolo» va bene <code>intesa</code>. Un'immagine caricata dal modulo ha sempre la precedenza su quelle in cartella.</p></details>
+
+<dialog id="dDet"><div class="art" id="detArt"></div><h2 id="detT" style="margin:0 0 8px"></h2><div id="detB"></div><dl id="detL"></dl><div id="detA"></div>
+<div class="azs"><button type="button" class="x" data-chiudi>Chiudi</button><form method="post" id="fDel" style="margin:0" onsubmit="return confirm('Eliminare questo documento?')"><input type="hidden" name="_t" value="{{ csrf }}"><button class="del">Elimina</button></form><button type="button" id="detMod">Modifica</button></div></dialog>
+
+<dialog id="dDoc"><form method="post" action="/documenti/salva" class="df" id="fDoc" enctype="multipart/form-data">
+<h2 id="tDoc">Nuovo documento</h2>
+<input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="id">
+<label>Tipo<select name="tipo">{% for k, v in tipi.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+<label id="wTit" hidden>Nome del documento<input name="titolo" maxlength="120" placeholder="Es. Tessera sanitaria"></label>
+<div id="wCfChk" hidden><label class="ck"><input type="checkbox" id="cfNo"><span>Non ricordo il codice: calcolalo</span></label></div>
+<div class="r2"><label>Nome<input name="nome_p" maxlength="60" autocomplete="off"></label><label>Cognome<input name="cognome_p" maxlength="60" autocomplete="off"></label></div>
+<div id="cfCalc" hidden class="nc2"><b>Dati per il calcolo</b>
+<div class="r2"><label>Data di nascita<input type="date" id="cfData"></label><label>Sesso<select id="cfSex"><option value="">Scegli…</option><option value="M">Maschio</option><option value="F">Femmina</option></select></label></div>
+<label>Luogo di nascita (comune o stato estero)<input id="cfLuogo" list="cfList" autocomplete="off" placeholder="Scrivi e scegli dall'elenco, es. Padova"></label><datalist id="cfList"></datalist>
+</div>
+<label><span id="lNum">Numero documento</span><input name="numero" maxlength="60" autocomplete="off"></label>
+<label id="wEnte"><span id="lEnte">Rilasciato da</span><input name="ente" maxlength="120"></label>
+<label id="wIban" hidden>IBAN<input name="iban" maxlength="40" placeholder="IT00 X000 0000 0000 0000 0000 000" autocomplete="off"></label>
+<div class="r2" id="rDate"><label id="wRil">Data rilascio<input type="date" name="rilascio"></label><label id="wScad"><span id="lScad">Scade il</span><input type="date" name="scadenza"></label></div>
+
+<div id="wImg" hidden class="cimg"><b>Immagine della carta <small class="mu">(facoltativa)</small></b>
+<div class="pv"><img id="pvImg" alt="" hidden><span id="pvTxt" class="mu">Nessuna immagine: verrà usato il disegno generico.</span></div>
+<div class="rimg"><label class="fl">Scegli immagine<input type="file" name="immagine" accept="image/png,image/jpeg,image/webp" id="fImg"></label><button type="button" class="x" id="rmImg" hidden>Rimuovi</button><input type="hidden" name="rimuovi_img" value="0"></div>
+<small class="mu">Una foto o uno screenshot della carta, senza numero né CVV in vista. Il nome del file non conta: l'immagine viene associata a questa carta e ridotta in automatico.</small></div>
+<div id="wConto" hidden class="cassoc"><label>Conto associato<select name="conto_id"><option value="">Nessun conto</option>{% for c in conti %}<option value="{{ c.id }}">{{ c.titolo }}{% if c.intestatario %} · {{ c.intestatario }}{% endif %}</option>{% endfor %}</select></label>
+<button type="button" class="x" id="assocB">＋ Associa nuovo conto</button>
+<div id="wNuovoC" hidden class="nc2"><input type="hidden" name="nuovo_conto" value="0"><b>Dati del conto</b><label>Intestatario del conto<input name="c_intestatario" maxlength="120" placeholder="Se vuoto, uguale all'intestatario della carta"></label><label>IBAN<input name="c_iban" maxlength="40" placeholder="IT00 X000 0000 0000 0000 0000 000" autocomplete="off"></label><label>Numero conto (facoltativo)<input name="c_numero" maxlength="60"></label><small class="mu">La banca è quella indicata sopra.</small></div></div>
+<label id="wNota">Note<textarea name="nota" rows="2" maxlength="500" placeholder="Es. categorie patente, filiale, codice cliente…"></textarea></label>
+<div class="avv" id="wAvv">Non inserire PIN, CVV o password: bastano numero e scadenza.</div>
+<div id="fErr" class="cferr" role="alert" hidden></div>
+<div class="bb"><button type="button" class="x" data-chiudi>Annulla</button><button type="submit">Salva</button></div>
+</form></dialog>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s),dDoc=$('#dDoc'),dDet=$('#dDet'),f=$('#fDoc');
+const TIPI={{ tipi|tojson }},MESI=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+const dIt=s=>{if(!s)return '';const [a,m,g]=s.split('-');return (+g)+' '+MESI[m-1]+' '+a};
+const iban4=s=>(s||'').replace(/\s+/g,'').replace(/(.{4})/g,'$1 ').trim();
+document.querySelectorAll('[data-chiudi]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
+[dDoc,dDet].forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close()}));
+// campi che cambiano col tipo
+function adatta(){
+ const t=f.tipo.value,carta=t=='banc'||t=='cc'||t=='deb',conto=t=='conto',cf=t=='cf';
+ $('#lNum').textContent=carta?'Numero carta':conto?'Numero conto (facoltativo)':t=='pat'?'Numero patente':t=='nau'?'Numero patente nautica':t=='ts'?'Numero tessera':t=='cf'?'Codice fiscale':t=='pass'?'Numero passaporto':t=='ci'?"Numero carta d'identità":'Numero documento';
+ $('#lEnte').textContent=carta||conto?'Banca':'Rilasciato da';f.numero.maxLength=cf?16:60;
+ $('#wNota').hidden=cf;$('#wAvv').hidden=cf;$('#wIban').hidden=!conto;$('#wCfChk').hidden=!cf;if(!cf){$('#cfNo').checked=false;$('#cfCalc').hidden=true}$('#wEnte').hidden=cf;$('#rDate').hidden=cf||conto;$('#wConto').hidden=!carta;$('#wImg').hidden=!carta;if(!carta)apriNC(false);$('#wRil').hidden=carta||conto||cf;$('#wScad').hidden=conto||cf;$('#wTit').hidden=t!='altro';
+ $('#lScad').textContent=carta?'Scadenza (mese/anno)':'Scade il';
+ const v=f.scadenza.value,tp=carta?'month':'date';
+ if(f.scadenza.type!=tp){f.scadenza.type=tp;f.scadenza.value=tp=='month'?v.slice(0,7):(v.length==7?v+'-01':v)}
+}
+function apriNC(v){$('#wNuovoC').hidden=!v;f.nuovo_conto.value=v?'1':'0';$('#assocB').textContent=v?'✕ Annulla nuovo conto':'＋ Associa nuovo conto';f.conto_id.disabled=v}
+$('#assocB').onclick=()=>{apriNC($('#wNuovoC').hidden);valida()};
+f.tipo.addEventListener('change',adatta);
+// anteprima e ridimensionamento dell'immagine (max 900 px, JPEG)
+const fImg=$('#fImg'),pvImg=$('#pvImg'),pvTxt=$('#pvTxt'),rmImg=$('#rmImg');
+function anteprima(src){pvImg.hidden=!src;if(src)pvImg.src=src;pvTxt.hidden=!!src;rmImg.hidden=!src}
+fImg.addEventListener('change',()=>{
+ const file=fImg.files[0];f.rimuovi_img.value='0';if(!file){return}
+ const img=new Image(),u=URL.createObjectURL(file);
+ img.onload=()=>{const k=Math.min(1,900/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+  const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);
+  c.toBlob(b=>{const dt=new DataTransfer();dt.items.add(new File([b],'carta.jpg',{type:'image/jpeg'}));fImg.files=dt.files;anteprima(URL.createObjectURL(b))},'image/jpeg',.85);URL.revokeObjectURL(u)};
+ img.onerror=()=>{fImg.value='';anteprima(null)};img.src=u});
+rmImg.onclick=()=>{fImg.value='';f.rimuovi_img.value='1';anteprima(null)};
+const GR={doc:['ci','pass','pat','nau','ts','cf','altro'],ban:['banc','cc','deb','conto']};
+function setTipi(g){f.tipo.innerHTML=GR[g].map(k=>`<option value="${k}">${TIPI[k]}</option>`).join('')}
+// ---- codice fiscale ----
+const MCF='ABCDEHLMPRST',DISP={'0':1,'1':0,'2':5,'3':7,'4':9,'5':13,'6':15,'7':17,'8':19,'9':21,A:1,B:0,C:5,D:7,E:9,F:13,G:15,H:17,I:19,J:21,K:2,L:4,M:18,N:20,O:11,P:3,Q:6,R:8,S:12,T:14,U:16,V:10,W:22,X:25,Y:24,Z:23};
+const nrm=t=>(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z]/g,'');
+function tre(t,nome){let c=t.match(/[BCDFGHJKLMNPQRSTVWXYZ]/g)||[],v=t.match(/[AEIOU]/g)||[];if(nome&&c.length>=4)c=[c[0],c[2],c[3]];return c.concat(v,['X','X','X']).slice(0,3).join('')}
+function calcolaCF(cogn,nome,data,sesso,belf){
+ cogn=nrm(cogn);nome=nrm(nome);if(!cogn||!nome||!data||!sesso||!belf)return '';
+ const [a,m,g]=data.split('-').map(Number);
+ let c=tre(cogn,false)+tre(nome,true)+String(a%100).padStart(2,'0')+MCF[m-1]+String(g+(sesso=='F'?40:0)).padStart(2,'0')+belf;
+ let sum=0;for(let i=0;i<15;i++){const ch=c[i];sum+=i%2==0?DISP[ch]:(/\d/.test(ch)?+ch:ch.charCodeAt(0)-65)}
+ return c+String.fromCharCode(65+sum%26)}
+let luoghi={},tm=null;
+function aggiornaCF(){
+ if(!$('#cfNo').checked)return;
+ const b=luoghi[$('#cfLuogo').value],r=calcolaCF(f.cognome_p.value,f.nome_p.value,$('#cfData').value,$('#cfSex').value,b);
+ if(r){f.numero.value=r;valida()}}
+$('#cfNo').addEventListener('change',()=>{$('#cfCalc').hidden=!$('#cfNo').checked;if($('#cfNo').checked)(f.nome_p.value?$('#cfData'):f.nome_p).focus()});
+['cfData','cfSex'].forEach(i=>$('#'+i).addEventListener('input',aggiornaCF));[f.nome_p,f.cognome_p].forEach(e=>e.addEventListener('input',aggiornaCF));
+$('#cfLuogo').addEventListener('input',()=>{aggiornaCF();clearTimeout(tm);const q=$('#cfLuogo').value.trim();if(q.length<2||luoghi[$('#cfLuogo').value])return;
+ tm=setTimeout(()=>fetch('/api/comuni?q='+encodeURIComponent(q)).then(r=>r.json()).then(L=>{luoghi={};$('#cfList').innerHTML='';L.forEach(x=>{luoghi[x.n]=x.c;const o=document.createElement('option');o.value=x.n;$('#cfList').append(o)});aggiornaCF()}).catch(()=>{}),220)});
+f.numero.addEventListener('input',()=>{if(f.tipo.value=='cf')f.numero.value=f.numero.value.toUpperCase().replace(/\s+/g,'')});
+// verifica nome/cognome rispetto al codice fiscale
+const DIG={L:0,M:1,N:2,P:3,Q:4,R:5,S:6,T:7,U:8,V:9};
+function verificaCF(){
+ const cod=f.numero.value.toUpperCase().replace(/\s+/g,''),nome=f.nome_p.value,cogn=f.cognome_p.value;
+ if(!nome.trim()||!cogn.trim())return 'Per il codice fiscale inserisci nome e cognome.';
+ if(!/^[A-Z]{6}[0-9LMNPQRSTUV]{2}[ABCDEHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/.test(cod))return 'Il codice fiscale non è valido: deve avere 16 caratteri (6 lettere, 2 cifre, 1 lettera, 2 cifre, 1 lettera, 3 cifre, 1 lettera).';
+ let sum=0;for(let i=0;i<15;i++){const ch=cod[i];sum+=i%2==0?DISP[ch]:(/\d/.test(ch)?+ch:ch.charCodeAt(0)-65)}
+ if(String.fromCharCode(65+sum%26)!=cod[15])return "Il codice fiscale non è valido: l'ultima lettera di controllo non torna.";
+ if(cod.slice(0,3)!=tre(nrm(cogn),false))return 'Il cognome non corrisponde al codice fiscale (le prime 3 lettere non coincidono).';
+ if(cod.slice(3,6)!=tre(nrm(nome),true))return 'Il nome non corrisponde al codice fiscale (le lettere 4-6 non coincidono).';
+ const g=+cod.slice(9,11).replace(/[LMNPQRSTUV]/g,c=>DIG[c]);
+ if(!((g>=1&&g<=31)||(g>=41&&g<=71)))return 'Il giorno di nascita nel codice fiscale non è valido.';
+ return ''}
+function ibanOk(v){v=(v||'').replace(/\s+/g,'').toUpperCase();if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(v))return false;if(v.startsWith('IT')&&v.length!=27)return false;
+ let r=0;for(const ch of v.slice(4)+v.slice(0,4)){const n=/\d/.test(ch)?ch:String(ch.charCodeAt(0)-55);for(const c of n)r=(r*10+ +c)%97}return r==1}
+const NOMEOK=/^[\p{L}][\p{L}' .\-]*$/u;
+// ogni controllo ritorna null (ok) oppure [messaggio, campo, mostraSubito]; il campo vuoto blocca il Salva senza messaggio
+function problema(){
+ const t=f.tipo.value,v=n=>f[n].value.trim(),carta=t=='banc'||t=='cc'||t=='deb',conto=t=='conto';
+ const vuoto=n=>[null,f[n]];
+ if(t=='altro'&&!v('titolo'))return vuoto('titolo');
+ if(!v('nome_p'))return vuoto('nome_p');
+ if(!v('cognome_p'))return vuoto('cognome_p');
+ if(!NOMEOK.test(v('nome_p')))return ['Il nome contiene caratteri non validi: usa solo lettere.',f.nome_p];
+ if(!NOMEOK.test(v('cognome_p')))return ['Il cognome contiene caratteri non validi: usa solo lettere.',f.cognome_p];
+ if(t=='cf'){if(!v('numero'))return vuoto('numero');const m=verificaCF();return m?[m,f.numero,f.numero.value.replace(/\s+/g,'').length>=16]:null}
+ if(carta||conto){if(!v('ente'))return vuoto('ente')}
+ if(conto){if(!v('iban'))return vuoto('iban');if(!ibanOk(f.iban.value))return ["L'IBAN non è valido: controlla di averlo scritto giusto.",f.iban,f.iban.value.replace(/\s+/g,'').length>=15]}
+ else{
+  const n=f.numero.value.replace(/[\s.-]/g,'');
+  if(carta){if(!n)return vuoto('numero');if(!/^\d{12,19}$/.test(n))return ['Il numero della carta deve avere da 12 a 19 cifre.',f.numero,n.length>=12]}
+  else if(t!='altro'){if(!v('numero'))return vuoto('numero');if(!/^[A-Za-z0-9][A-Za-z0-9 \/.\-]{3,29}$/.test(v('numero')))return ['Il numero del documento non sembra valido (almeno 4 caratteri, solo lettere, cifre e simboli semplici).',f.numero]}
+  if(t!='altro'&&!v('scadenza'))return vuoto('scadenza');
+  if(!$('#wRil').hidden&&v('rilascio')&&v('scadenza')&&v('rilascio')>v('scadenza'))return ['La data di rilascio è successiva alla scadenza.',f.rilascio,true];
+  if(carta&&!$('#wNuovoC').hidden&&v('c_iban')&&!ibanOk(f.c_iban.value))return ["L'IBAN del conto non è valido.",f.c_iban,f.c_iban.value.replace(/\s+/g,'').length>=15];
+ }
+ return null}
+function valida(){
+ const e=$('#fErr'),btn=f.querySelector('button[type=submit]'),p=problema();
+ btn.disabled=!!p;e.hidden=!(p&&p[0]&&(p[2]||document.activeElement!==p[1]));e.textContent=p&&p[0]||'';return p}
+f.addEventListener('input',valida);f.addEventListener('change',valida);f.addEventListener('focusout',()=>setTimeout(valida,0));
+f.addEventListener('submit',e=>{if(valida()){e.preventDefault();e.stopImmediatePropagation()}},true);
+function modulo(o){
+ const gr=o.tipo?(GR.ban.includes(o.tipo)?'ban':'doc'):(o.gruppo||'doc');
+ f.reset();$('#fErr').hidden=true;f.scadenza.type='date';apriNC(false);$('#cfCalc').hidden=true;luoghi={};anteprima(o.has_img?'/documenti/'+o.id+'/immagine':null);
+ setTipi(gr);f.id.value=o.id||'';f.tipo.value=o.tipo||GR[gr][0];adatta();
+ f.titolo.value=o.titolo||'';{let n=o.nome_p,c=o.cognome_p;if(!n&&!c&&o.intestatario){const w=o.intestatario.trim().split(/\s+/);n=w.shift();c=w.join(' ')}f.nome_p.value=n||'';f.cognome_p.value=c||''}f.numero.value=o.numero||'';f.ente.value=o.ente||'';f.iban.value=iban4(o.iban);
+ f.rilascio.value=o.rilascio||'';f.scadenza.value=f.scadenza.type=='month'?(o.scadenza||'').slice(0,7):(o.scadenza||'');f.nota.value=o.nota||'';f.conto_id.value=o.conto_id||'';
+ $('#tDoc').textContent=o.id?'Modifica '+(gr=='ban'?'carta / dato bancario':'documento'):gr=='ban'?'Nuova carta / dato bancario':'Nuovo documento';
+ dDoc.showModal();(o.id?f.numero:f.tipo).focus();valida();
+}
+$('#nuovoDoc').onclick=()=>modulo({gruppo:'doc'});$('#nuovaBanca').onclick=()=>modulo({gruppo:'ban'});
+// immagini: orizzontali tutte uguali, verticali tutte uguali
+document.querySelectorAll('.dimg').forEach(im=>{const c=()=>{if(im.naturalWidth&&im.naturalWidth/im.naturalHeight<1.1)im.classList.add('port')};im.complete?c():im.addEventListener('load',c)});
+// trascinamento per cambiare ordine
+(()=>{
+ let just=false;
+ const tok=document.querySelector('#fDoc input[name=_t]').value;
+ document.querySelectorAll('.dgrid').forEach(g=>{
+  let st=null;
+  g.addEventListener('dragstart',e=>e.preventDefault());
+  g.addEventListener('click',e=>{if(just){e.stopPropagation();e.preventDefault()}},true);
+  const tiles=()=>[...g.querySelectorAll('.dt:not(.dragclone)')];
+  const flip=fn=>{const pre=new Map(tiles().map(t=>[t,t.getBoundingClientRect()]));fn();
+   tiles().forEach(t=>{const a=pre.get(t),b=t.getBoundingClientRect(),dx=a.left-b.left,dy=a.top-b.top;if(!dx&&!dy||t===st.el)return;
+    t.style.transition='none';t.style.transform=`translate(${dx}px,${dy}px)`;requestAnimationFrame(()=>{t.style.transition='transform .22s ease';t.style.transform='';})})};
+  const inizia=()=>{const r=st.el.getBoundingClientRect();st.offx=st.x-r.left;st.offy=st.y-r.top;st.active=true;
+   const c=st.el.cloneNode(true);c.classList.add('dragclone');c.removeAttribute('data-id');c.style.width=r.width+'px';c.style.height=r.height+'px';c.style.left=r.left+'px';c.style.top=r.top+'px';
+   document.body.append(c);st.clone=c;st.el.classList.add('ph');document.body.classList.add('dnd');st.ids0=tiles().map(t=>t.dataset.id).join()};
+  const muovi=e=>{if(!st||e.pointerId!==st.pid)return;st.x=e.clientX;st.y=e.clientY;
+   if(!st.active){const d=Math.hypot(st.x-st.sx,st.y-st.sy);
+    if(st.touch){if(d>9){fine(true)}return}
+    if(d>6)inizia();else return}
+   e.preventDefault();
+   st.clone.style.left=(st.x-st.offx)+'px';st.clone.style.top=(st.y-st.offy)+'px';
+   if(st.y<70)scrollBy(0,-14);else if(st.y>innerHeight-70)scrollBy(0,14);
+   const gr=g.getBoundingClientRect(),gx=gr.left+g.clientLeft,gy=gr.top+g.clientTop;
+   const t=tiles().find(t=>{if(t===st.el)return false;const l=gx+t.offsetLeft,tp=gy+t.offsetTop,mx=t.offsetWidth*.18,my=t.offsetHeight*.18;return st.x>=l+mx&&st.x<=l+t.offsetWidth-mx&&st.y>=tp+my&&st.y<=tp+t.offsetHeight-my});
+   if(!t)return;const all=tiles(),i=all.indexOf(st.el),j=all.indexOf(t);
+   flip(()=>{if(j<i)g.insertBefore(st.el,t);else g.insertBefore(st.el,t.nextSibling)})};
+  const fine=annulla=>{if(!st)return;clearTimeout(st.timer);document.removeEventListener('pointermove',muovi);document.removeEventListener('pointerup',su);document.removeEventListener('pointercancel',su);document.removeEventListener('touchmove',blocca);
+   if(st.active){st.clone.remove();st.el.classList.remove('ph');document.body.classList.remove('dnd');just=true;setTimeout(()=>just=false,60);
+    const ids=tiles().map(t=>t.dataset.id).join();if(ids!==st.ids0){const fd=new FormData();fd.append('_t',tok);fd.append('ids',ids);fetch('/documenti/ordine',{method:'POST',body:fd}).catch(()=>{})}}
+   st=null};
+  const su=()=>fine(false);
+  const blocca=e=>{if(st&&st.active)e.preventDefault()};
+  g.addEventListener('pointerdown',e=>{
+   const t=e.target.closest('.dt');if(!t||st||(e.pointerType==='mouse'&&e.button!==0))return;
+   st={el:t,sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,active:false,pid:e.pointerId,touch:e.pointerType!=='mouse'};
+   if(st.touch)st.timer=setTimeout(()=>{if(st&&!st.active){inizia();if(navigator.vibrate)navigator.vibrate(15)}},350);
+   document.addEventListener('pointermove',muovi,{passive:false});document.addEventListener('pointerup',su);document.addEventListener('pointercancel',su);document.addEventListener('touchmove',blocca,{passive:false})});
+ });
+})();
+
+// dettaglio
+let cur=null;
+function riga(k,v,copia){if(!v)return;const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=k;const s=document.createElement('span');s.textContent=v;dd.append(s);
+ if(copia){const b=document.createElement('button');b.type='button';b.className='x cp';b.textContent='Copia';b.onclick=()=>{const r=copia,ok=()=>{b.textContent='Copiato ✓';setTimeout(()=>b.textContent='Copia',1500)};
+   if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(r).then(ok,()=>{});else{const t=document.createElement('textarea');t.value=r;document.body.append(t);t.select();try{document.execCommand('copy');ok()}catch(e){}t.remove()}};dd.append(b)}
+ $('#detL').append(dt,dd)}
+document.querySelectorAll('.dt').forEach(t=>t.addEventListener('click',()=>{
+ const o=JSON.parse(t.dataset.d);cur=o;
+ $('#detArt').innerHTML=t.querySelector('.art').innerHTML;$('#detT').textContent=o.titolo;$('#detL').innerHTML='';
+ const carta=o.tipo=='banc'||o.tipo=='cc'||o.tipo=='deb';
+ riga('Tipo',TIPI[o.tipo]);riga('Intestatario',o.intestatario);
+ riga(carta?'Numero carta':o.tipo=='conto'?'Numero conto':o.tipo=='cf'?'Codice fiscale':'Numero',carta?o.numero.replace(/\s+/g,'').replace(/(.{4})/g,'$1 ').trim():o.numero,o.numero?o.numero.replace(/\s+/g,''):'');
+ riga('IBAN',iban4(o.iban),o.iban);
+ if(o.conto){riga('Conto associato',o.conto.titolo);riga('Intestatario conto',o.conto.intestatario);riga('IBAN conto',iban4(o.conto.iban),o.conto.iban);riga('Numero conto',o.conto.numero,o.conto.numero)}
+ if(o.carte&&o.carte.length)riga('Carte associate',o.carte.join(', '));
+ riga(carta||o.tipo=='conto'?'Banca':'Rilasciato da',o.ente);
+ riga('Rilasciato il',dIt(o.rilascio));
+ if(o.scadenza){const g=o.giorni;riga(carta?'Scadenza':'Scade il',carta?o.scadenza.slice(5,7)+'/'+o.scadenza.slice(2,4):dIt(o.scadenza));
+  riga('Stato',g<0?'Scaduto da '+(-g)+' giorni':g==0?'Scade oggi':'Valido ancora '+g+' giorni')}
+ riga('Note',o.nota);
+ $('#detB').innerHTML=o.perc==null?'':'<div class="pb '+o.stato+'"><i style="width:'+o.perc+'%"></i></div><div class="pbl"><span>'+(o.rilascio?dIt(o.rilascio):'')+'</span><span>'+dIt(o.scadenza)+'</span></div>';
+ $('#fDel').action='/documenti/'+o.id+'/elimina';
+ dDet.showModal();
+}));
+$('#detMod').onclick=()=>{dDet.close();modulo(cur)};
+})()
+</script>{% endblock %}

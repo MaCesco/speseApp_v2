@@ -225,3 +225,22 @@ body:not([data-sez=home]) main{padding-top:58px}}
 
 /* home: in alto solo Esci e tema (i riquadri al centro bastano) */
 @media(min-width:721px){nav.nav-home>a:not(.logo){display:none}}
+
+/* ===== documenti ===== */
+:root{--c-dc:#059669}[data-theme=dark]{--c-dc:#34d399}
+body[data-sez=doc]{--in:#059669;--hero:#064e3b;--sel:#047857}
+[data-theme=dark] body[data-sez=doc]{--in:#34d399;--hero:#064e3b;--sel:#059669}
+nav a.n-dc .ic{color:var(--c-dc)}nav a.n-dc{position:relative}
+.b-dc{background:linear-gradient(145deg,#10b981,#065f46)}
+.hub>.big,.hub>.big:nth-child(4),.hub>.big:nth-child(5){grid-column:span 2}
+@media(max-width:900px){.hub>.big,.hub>.big:nth-child(4),.hub>.big:nth-child(5){grid-column:auto}}
+@media(max-width:720px){nav a.n-dc .bdg{position:absolute;top:2px;right:4px;margin:0;line-height:16px;font-size:10px}}
+
+/* fumetto d'allarme che esce dai riquadri della Home */
+.hub>.big{position:relative}
+.hwarn{position:absolute;top:-18px;right:-10px;width:72px;height:60px;display:grid;place-items:center;background:#fff;border:3px solid #dc2626;border-radius:20px;box-shadow:0 10px 22px rgba(0,0,0,.32);animation:hw 2.4s ease-in-out infinite;transform-origin:20% 100%;z-index:2}
+.hwarn::after{content:"";position:absolute;left:14px;bottom:-12px;width:20px;height:20px;background:#fff;border-right:3px solid #dc2626;border-bottom:3px solid #dc2626;transform:rotate(45deg) skew(12deg,12deg);border-bottom-right-radius:5px}
+.hwarn svg{width:40px;height:40px;position:relative;z-index:1}
+@keyframes hw{0%,100%{transform:rotate(-4deg) scale(1)}50%{transform:rotate(3deg) scale(1.08)}}
+@media(prefers-reduced-motion:reduce){.hwarn{animation:none}}
+@media(max-width:900px){.hwarn{right:-4px}}

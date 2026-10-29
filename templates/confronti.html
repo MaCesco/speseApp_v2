@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block c %}
 <style>
 main{max-width:none}
-.cg{display:grid;gap:16px}.cg>*{min-width:0}
+.cg{display:grid;gap:16px}.cg>*{min-width:0}.cgc{display:contents}.cgc>.card{align-self:start}
 .stats{grid-template-columns:repeat(3,1fr);margin:0 0 16px}
 .lb{display:grid;gap:4px;font-size:14px;font-weight:700;color:var(--mu)}
 .lb select{font-weight:400;color:var(--tx)}
@@ -10,7 +10,7 @@ main{max-width:none}
 .cmp th{padding:8px 6px;font-size:13px;color:var(--mu);border-bottom:1px solid var(--line)}
 .cmp td{font-weight:400;white-space:nowrap}
 .cmp th,.cmp td{text-align:right}.cmp th:first-child,.cmp td:first-child{text-align:left}
-@media(min-width:1100px){.cg{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media(min-width:1100px){.cg{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}.cgc{display:grid;gap:16px;align-content:start;min-width:0}}
 @media(max-width:700px){.stats{grid-template-columns:1fr}}
 </style>
 <a href="/ripetizioni" class="mu">← Ripetizioni</a>
@@ -27,15 +27,19 @@ main{max-width:none}
 <div class="card stat"><span class="mu" id="l3">Variazione</span><b id="k3">–</b></div>
 </div>
 <div class="cg">
-<div class="card"><h2 id="t1">Totale per anno</h2><p class="mu" id="s1" style="font-size:14px;margin:0 0 8px"></p><div class="ch" data-ctl="met,per,boxA"><canvas id="c1"></canvas></div></div>
-<div class="card"><h2 id="t2">Mese per mese, anno su anno</h2><div class="ch" data-ctl="met,per,boxA"><canvas id="c2"></canvas></div></div>
-<div class="card"><h2>Confronto tra due mesi: ore svolte e incasso</h2>
+<div class="cgc">
+<div class="card" style="order:1"><h2 id="t1">Totale per anno</h2><p class="mu" id="s1" style="font-size:14px;margin:0 0 8px"></p><div class="ch" data-ctl="met,per,boxA"><canvas id="c1"></canvas></div></div>
+<div class="card" style="order:3"><h2>Confronto tra due mesi: ore svolte e incasso</h2>
 <div class="row" style="align-items:end;margin-bottom:12px">
 <label class="lb">Primo mese<div class="row" style="flex-wrap:nowrap"><select id="am"></select><select id="ay"></select></div></label>
 <label class="lb">Secondo mese<div class="row" style="flex-wrap:nowrap"><select id="bm"></select><select id="by"></select></div></label></div>
 <table class="cmp" id="cmpT"></table></div>
-<div class="card"><div class="row"><h2 id="t3" style="margin:0">Stesso mese, negli anni</h2><select id="tm" aria-label="Mese" style="max-width:180px"></select></div>
+</div>
+<div class="cgc">
+<div class="card" style="order:2"><h2 id="t2">Mese per mese, anno su anno</h2><div class="ch" data-ctl="met,per,boxA"><canvas id="c2"></canvas></div></div>
+<div class="card" style="order:4"><div class="row"><h2 id="t3" style="margin:0">Stesso mese, negli anni</h2><select id="tm" aria-label="Mese" style="max-width:180px"></select></div>
 <div class="ch" data-ctl="met,tm" style="margin-top:12px"><canvas id="c3"></canvas></div></div>
+</div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
