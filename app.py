@@ -208,6 +208,8 @@ class Documento(db.Model):
     titolo = db.Column(db.String(120), nullable=False)
     intestatario = db.Column(db.String(120), default="")
     nome_p = db.Column(db.String(60), default="")
+    codici = db.Column(db.String(60), default="")
+    numero2 = db.Column(db.String(20), default="")
     cognome_p = db.Column(db.String(60), default="")
     numero = db.Column(db.String(60), default="")
     ente = db.Column(db.String(120), default="")  # ente di rilascio / banca
@@ -227,7 +229,7 @@ def migra():
     """Aggiunge le colonne nuove alle tabelle gia' esistenti (database online)."""
     from sqlalchemy import inspect, text
     insp = inspect(db.engine)
-    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER"), ("impegno", "colore", "VARCHAR(10)"), ("scadenza", "tipo", "VARCHAR(10)"), ("scadenza", "colore", "VARCHAR(10)"), ("documento", "conto_id", "INTEGER"), ("documento", "immagine", "TEXT"), ("documento", "img_tipo", "VARCHAR(20)"), ("documento", "ordine", "INTEGER"), ("documento", "nome_p", "VARCHAR(60)"), ("documento", "cognome_p", "VARCHAR(60)")):
+    for tab, col, tipo in (("studente", "note", "VARCHAR(500)"), ("lezione", "tariffa", "FLOAT"), ("studente", "credito", "FLOAT"), ("movimento", "file_id", "INTEGER"), ("impegno", "colore", "VARCHAR(10)"), ("scadenza", "tipo", "VARCHAR(10)"), ("scadenza", "colore", "VARCHAR(10)"), ("documento", "conto_id", "INTEGER"), ("documento", "immagine", "TEXT"), ("documento", "img_tipo", "VARCHAR(20)"), ("documento", "ordine", "INTEGER"), ("documento", "nome_p", "VARCHAR(60)"), ("documento", "cognome_p", "VARCHAR(60)"), ("documento", "codici", "VARCHAR(60)"), ("documento", "numero2", "VARCHAR(20)")):
         if col not in [c["name"] for c in insp.get_columns(tab)]:
             db.session.execute(text(f"ALTER TABLE {tab} ADD COLUMN {col} {tipo}"))
     if "contenuto" not in [c["name"] for c in insp.get_columns("file_bilancio")]:
@@ -2189,6 +2191,9 @@ def documenti_in_scadenza(uid):
 def _data_doc(v):
     """Data da un campo date (AAAA-MM-GG) o month (AAAA-MM: vale l'ultimo giorno del mese, come sulle carte)."""
     v = (v or "").strip()
+    mm = re.fullmatch(r"(\d{2})/(\d{2}|\d{4})", v)
+    if mm:  # MM/AA o MM/AAAA, come sulle carte
+        v = f"{2000 + int(mm.group(2)) if len(mm.group(2)) == 2 else int(mm.group(2))}-{mm.group(1)}"
     if len(v) == 7:
         try:
             a, m = int(v[:4]), int(v[5:7])
@@ -2217,7 +2222,7 @@ def documenti():
         lista.append(dict(d=d, nome=nome_doc(d), img=propria or immagine_doc(d, imgs), **st, raw=dict(has_img=bool(d.immagine), 
             id=d.id, tipo=d.tipo, titolo=nome_doc(d), intestatario=d.intestatario or "", nome_p=d.nome_p or "", cognome_p=d.cognome_p or "", numero=d.numero or "", ente=d.ente or "",
             rilascio=d.rilascio.isoformat() if d.rilascio else "", scadenza=d.scadenza.isoformat() if d.scadenza else "",
-            iban=d.iban or "", nota=d.nota or "", colore=d.colore or "", giorni=st["giorni"], stato=st["stato"], perc=st.get("perc"), conto_id=c.id if c else "",
+            iban=d.iban or "", nota=d.nota or "", codici=d.codici or "", numero2=d.numero2 or "", colore=d.colore or "", giorni=st["giorni"], stato=st["stato"], perc=st.get("perc"), conto_id=c.id if c else "",
             conto=dict(titolo=nome_doc(c), intestatario=c.intestatario or "", iban=c.iban or "", ente=c.ente or "", numero=c.numero or "") if c else None,
             carte=carte_di.get(d.id, []))))
     gruppi = [("Documenti", "doc", ("ci", "pass", "pat", "nau", "ts", "cf", "altro")), ("Carte e dati bancari", "ban", ("banc", "cc", "deb", "conto"))]
@@ -2280,11 +2285,47 @@ def verifica_doc(f, tipo):
             return "Indica la banca."
         if not re.fullmatch(r"\d{12,19}", re.sub(r"[\s.\-]", "", num)):
             return "Il numero della carta deve avere da 12 a 19 cifre."
+        if not re.fullmatch(r"(0[1-9]|1[0-2])/\d{2}", f.get("scadenza", "").strip()):
+            return "La scadenza della carta va scritta come MM/AA, ad esempio 05/28."
+        em = f.get("rilascio", "").strip()
+        if em:
+            if not re.fullmatch(r"(0[1-9]|1[0-2])/\d{2}", em):
+                return "L'emissione della carta va scritta come MM/AA, ad esempio 05/23."
+            oggi_ = date.today()
+            if (2000 + int(em[3:]), int(em[:2])) > (oggi_.year, oggi_.month):
+                return "La data di emissione non può essere successiva al mese corrente."
+            if (em[3:], em[:2]) > (f.get("scadenza", "").strip()[3:], f.get("scadenza", "").strip()[:2]):
+                return "La data di emissione è successiva alla scadenza."
         if f.get("c_iban", "").strip() and f.get("nuovo_conto") == "1" and not iban_ok(f.get("c_iban", "")):
             return "L'IBAN del conto non è valido."
     elif tipo not in ("altro", "cf"):
+        if tipo == "nau":
+            if not re.fullmatch(r"[A-Z]{2} ?\d{6,7}", num.upper()):
+                return "Il numero identificativo è formato da 2 lettere e 6-7 cifre (ad esempio AA 0123456)."
+            if not re.fullmatch(r"\d{4}", f.get("numero2", "").strip()):
+                return "Il numero di patente è di 4 cifre (ad esempio 1234)."
+            if not f.get("ente", "").strip():
+                return "Indica chi ha rilasciato la patente nautica."
+            if not _data_doc(f.get("rilascio")):
+                return "Inserisci la data di rilascio della patente nautica."
+        if tipo == "pass":
+            if not f.get("ente", "").strip():
+                return "Indica l'autorità che ha rilasciato il passaporto."
+            if not _data_doc(f.get("rilascio")):
+                return "Inserisci la data di rilascio del passaporto."
+        if tipo == "pat":
+            if not f.get("ente", "").strip():
+                return "Indica dove è stata rilasciata la patente (motorizzazione)."
+            if not _data_doc(f.get("rilascio")):
+                return "Inserisci la data di rilascio della patente."
+            if f.get("codici", "").strip() and not re.fullmatch(r"[0-9A-Za-z.,+/() \-]+", f.get("codici", "").strip()):
+                return "I codici contengono caratteri non validi."
         if len(num) < 4:
             return "Il numero del documento non sembra valido."
+    if tipo not in CARTE and tipo not in ("conto", "cf", "ts"):
+        ril = _data_doc(f.get("rilascio"))
+        if ril and ril > date.today():
+            return "La data di rilascio non può essere futura."
     return ""
 
 
@@ -2306,6 +2347,13 @@ def documento_salva():
     if err:
         flash(err)
         return redirect("/documenti")
+    if tipo in ("ci", "pass", "pat", "nau", "ts", "cf") and request.form.get("forza") != "1":
+        q = Documento.query.filter_by(user_id=uid, tipo=tipo)
+        if request.form.get("id", "").isdigit():
+            q = q.filter(Documento.id != int(request.form["id"]))
+        if q.first():
+            flash(f"Hai già inserito: {TIPI_DOC[tipo]}. Per aggiungerne un altro conferma l'avviso nella pagina.")
+            return redirect("/documenti")
     if tipo == "cf":
         ente = ""
         err = verifica_cf("".join(request.form.get("numero", "").split()).upper(), request.form.get("nome_p", ""), request.form.get("cognome_p", ""))
@@ -2326,11 +2374,19 @@ def documento_salva():
     d.numero = request.form.get("numero", "").strip()[:60]
     if tipo == "cf":
         d.numero = "".join(d.numero.split()).upper()[:16]
+    elif tipo == "nau":
+        d.numero = d.numero.upper()
     d.ente = ente
-    d.rilascio = None if tipo in ("banc", "cc", "deb", "conto", "cf") else _data_doc(request.form.get("rilascio"))
+    if tipo in CARTE:  # emissione facoltativa, MM/AA: vale il primo giorno del mese
+        em = re.fullmatch(r"(\d{2})/(\d{2})", request.form.get("rilascio", "").strip())
+        d.rilascio = date(2000 + int(em.group(2)), int(em.group(1)), 1) if em else None
+    else:
+        d.rilascio = None if tipo in ("conto", "cf", "ts") else _data_doc(request.form.get("rilascio"))
     d.scadenza = None if tipo in ("conto", "cf") else _data_doc(request.form.get("scadenza"))
     d.iban = "".join(request.form.get("iban", "").split()).upper()[:40] if tipo == "conto" else ""
     d.nota = request.form.get("nota", "").strip()[:500]
+    d.codici = request.form.get("codici", "").strip()[:60] if tipo == "pat" else ""
+    d.numero2 = request.form.get("numero2", "").strip()[:20] if tipo == "nau" else ""
     if tipo not in CARTE or request.form.get("rimuovi_img") == "1":
         d.immagine = d.img_tipo = None
     f = request.files.get("immagine")
