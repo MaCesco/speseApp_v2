@@ -224,6 +224,33 @@ class Documento(db.Model):
     ordine = db.Column(db.Integer)  # posizione scelta dall'utente
 
 
+class TipoPers(db.Model):
+    """Tipo di documento / carta creato dall'utente dal pulsante impostazioni: campi usati e se obbligatori."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    gruppo = db.Column(db.String(3), default="doc")  # doc | ban
+    nome = db.Column(db.String(60), nullable=False)
+    campi = db.Column(db.Text, default="{}")  # {"numero": "o" (obbligatorio) | "f" (facoltativo)}
+
+    @property
+    def chiave(self):
+        return f"u{self.id}"
+
+    @property
+    def cfg(self):
+        try:
+            return json.loads(self.campi or "{}")
+        except ValueError:
+            return {}
+
+
+class TipoNascosto(db.Model):
+    """Voce del menu a tendina rimossa dall'utente (i documenti gia' inseriti restano)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    chiave = db.Column(db.String(12), nullable=False)
+
+
 
 def migra():
     """Aggiunge le colonne nuove alle tabelle gia' esistenti (database online)."""
@@ -2086,9 +2113,10 @@ def eventi_periodo(uid, da, a):
 
 
 CARTE = ("banc", "cc", "deb")
+IMG_TIPI = CARTE + ("tess", "brev")  # tipi per cui si puo' caricare un'immagine
 TIPI_DOC = {
     "ci": "Carta d'identità", "pass": "Passaporto", "pat": "Patente", "nau": "Patente nautica", "ts": "Tessera sanitaria", "cf": "Codice fiscale", "banc": "Bancomat",
-    "cc": "Carta di credito", "deb": "Carta di debito", "conto": "Conto corrente", "altro": "Altro documento",
+    "cc": "Carta di credito", "deb": "Carta di debito", "conto": "Conto corrente", "tess": "Tessera", "brev": "Brevetto", "altro": "Altro documento",
 }
 COLORI_DOC = ["#2563eb", "#0891b2", "#16a34a", "#eab308", "#f97316", "#dc2626", "#ec4899", "#64748b", "#0f172a"]
 
@@ -2135,6 +2163,9 @@ def nome_doc(d):
     """Didascalia: per carte e conti 'BANCA - Tipo' (es. FINECO - Carta di debito)."""
     if d.tipo in ("banc", "cc", "deb", "conto") and (d.ente or "").strip():
         return f"{d.ente.strip().upper()} - {TIPI_DOC[d.tipo]}"
+    if d.tipo in ("tess", "brev") and (d.nota or "").strip():
+        n = " ".join(d.nota.split())
+        return f"{TIPI_DOC[d.tipo]} - {n[:40]}{'…' if len(n) > 40 else ''}"
     return d.titolo
 
 
@@ -2179,6 +2210,8 @@ def _stato_doc(d, oggi=None):
     inizio = d.rilascio if d.rilascio and d.rilascio < d.scadenza else d.scadenza - timedelta(days=round(365.25 * anni))
     tot = (d.scadenza - inizio).days or 1
     perc = max(0, min(100, round((oggi - inizio).days / tot * 100)))
+    if (d.tipo in ("tess", "brev") or d.tipo.startswith("u")) and not (d.rilascio and d.rilascio < d.scadenza):
+        perc = None  # senza emissione la durata di tessere e brevetti non e' stimabile
     return dict(giorni=g, stato="scaduta" if g < 0 else "urgente" if g <= 60 else "presto" if g <= 180 else "ok", perc=perc)
 
 
@@ -2203,10 +2236,130 @@ def _data_doc(v):
     return _data(v)
 
 
+CAMPI_PERS = {"nome": "Nome", "cognome": "Cognome", "numero": "Numero", "ente": "Rilasciato da", "rilascio": "Data di rilascio",
+              "scadenza": "Data di scadenza", "iban": "IBAN", "nota": "Note", "immagine": "Immagine caricabile"}
+
+
+def tipi_pers(uid):
+    return {t.chiave: t for t in TipoPers.query.filter_by(user_id=uid).order_by(TipoPers.id).all()}
+
+
+def verifica_pers(f, tp, ha_img):
+    """Controlli sui campi del tipo personalizzato: obbligatori compilati e valori coerenti."""
+    c = tp.cfg
+    for k in ("nome", "cognome"):
+        v = f.get(k + "_p", "").strip()
+        if k in c:
+            if not v and c[k] == "o":
+                return f"Il campo «{CAMPI_PERS[k]}» è obbligatorio."
+            if v and not re.fullmatch(r"[^\W\d_][^\d_]*", v):
+                return f"{CAMPI_PERS[k]}: usa solo lettere."
+    for k, campo in (("numero", "numero"), ("ente", "ente"), ("nota", "nota")):
+        if k in c and c[k] == "o" and not f.get(campo, "").strip():
+            return f"Il campo «{CAMPI_PERS[k]}» è obbligatorio."
+    ril = sca = None
+    for k in ("rilascio", "scadenza"):
+        v = f.get(k, "").strip()
+        if k in c:
+            if not v and c[k] == "o":
+                return f"Il campo «{CAMPI_PERS[k]}» è obbligatorio."
+            if v and not _data_doc(v):
+                return f"{CAMPI_PERS[k]} non valida."
+    ril, sca = (_data_doc(f.get("rilascio")) if "rilascio" in c else None), (_data_doc(f.get("scadenza")) if "scadenza" in c else None)
+    if ril and ril > date.today():
+        return "La data di rilascio non può essere futura."
+    if ril and sca and ril > sca:
+        return "La data di rilascio è successiva alla scadenza."
+    if "iban" in c:
+        v = f.get("iban", "").strip()
+        if not v and c["iban"] == "o":
+            return "Il campo «IBAN» è obbligatorio."
+        if v and not iban_ok(v):
+            return iban_errore(v) or "L'IBAN non è completo."
+    if "immagine" in c and c["immagine"] == "o" and not ha_img:
+        return "L'immagine è obbligatoria."
+    return ""
+
+
+@app.route("/documenti/tipi/salva", methods=["POST"])
+@login_required
+def tipo_pers_salva():
+    uid = session["uid"]
+    nome = " ".join(request.form.get("nome", "").split())[:40]
+    gruppo = "ban" if request.form.get("gruppo") == "ban" else "doc"
+    campi = {}
+    for k in CAMPI_PERS:
+        if request.form.get("usa_" + k):
+            campi[k] = "o" if request.form.get("req_" + k) == "o" else "f"
+    if not nome:
+        flash("Dai un nome al nuovo tipo.")
+        return redirect("/documenti")
+    if not campi:
+        flash("Seleziona almeno un campo da usare.")
+        return redirect("/documenti")
+    t = None
+    if request.form.get("id", "").isdigit():
+        t = TipoPers.query.filter_by(id=int(request.form["id"]), user_id=uid).first()
+    esistenti = {v.lower() for v in TIPI_DOC.values()} | {x.nome.lower() for x in TipoPers.query.filter_by(user_id=uid).all() if not t or x.id != t.id}
+    if nome.lower() in esistenti:
+        flash("Esiste già un tipo con questo nome.")
+        return redirect("/documenti")
+    if t is None:
+        t = TipoPers(user_id=uid)
+        db.session.add(t)
+    t.nome, t.gruppo, t.campi = nome, gruppo, json.dumps(campi)
+    db.session.flush()
+    Documento.query.filter_by(user_id=uid, tipo=t.chiave).update({"titolo": nome})
+    db.session.commit()
+    flash(f"Tipo «{nome}» salvato.")
+    return redirect("/documenti")
+
+
+def _chiave_valida(uid, k):
+    return k in TIPI_DOC and k != "altro" or k in tipi_pers(uid)
+
+
+@app.route("/documenti/tipi/nascondi", methods=["POST"])
+@login_required
+def tipo_nascondi():
+    uid, k = session["uid"], request.form.get("chiave", "")
+    if _chiave_valida(uid, k) and not TipoNascosto.query.filter_by(user_id=uid, chiave=k).first():
+        db.session.add(TipoNascosto(user_id=uid, chiave=k))
+        db.session.commit()
+        flash("Voce rimossa dal menu. I documenti già inseriti restano; puoi ripristinarla dalle impostazioni.")
+    return redirect("/documenti")
+
+
+@app.route("/documenti/tipi/ripristina", methods=["POST"])
+@login_required
+def tipo_ripristina():
+    uid = session["uid"]
+    TipoNascosto.query.filter_by(user_id=uid, chiave=request.form.get("chiave", "")).delete()
+    db.session.commit()
+    flash("Voce ripristinata nel menu.")
+    return redirect("/documenti")
+
+
+@app.route("/documenti/tipi/<int:id>/elimina", methods=["POST"])
+@login_required
+def tipo_pers_elimina(id):
+    t = TipoPers.query.filter_by(id=id, user_id=session["uid"]).first_or_404()
+    n = Documento.query.filter_by(user_id=session["uid"], tipo=t.chiave).count()
+    if n:
+        flash(f"Ci sono ancora {n} elementi di tipo «{t.nome}»: eliminali prima di cancellare il tipo.")
+        return redirect("/documenti")
+    TipoNascosto.query.filter_by(user_id=session["uid"], chiave=t.chiave).delete()
+    db.session.delete(t)
+    db.session.commit()
+    flash(f"Tipo «{t.nome}» eliminato.")
+    return redirect("/documenti")
+
+
 @app.route("/documenti")
 @login_required
 def documenti():
     uid = session["uid"]
+    pers = tipi_pers(uid)
     docs = Documento.query.filter_by(user_id=uid).order_by(Documento.ordine.is_(None), Documento.ordine, Documento.id).all()
     imgs = immagini_doc()
     lista = []
@@ -2225,9 +2378,12 @@ def documenti():
             iban=d.iban or "", nota=d.nota or "", codici=d.codici or "", numero2=d.numero2 or "", colore=d.colore or "", giorni=st["giorni"], stato=st["stato"], perc=st.get("perc"), conto_id=c.id if c else "",
             conto=dict(titolo=nome_doc(c), intestatario=c.intestatario or "", iban=c.iban or "", ente=c.ente or "", numero=c.numero or "") if c else None,
             carte=carte_di.get(d.id, []))))
-    gruppi = [("Documenti", "doc", ("ci", "pass", "pat", "nau", "ts", "cf", "altro")), ("Carte e dati bancari", "ban", ("banc", "cc", "deb", "conto"))]
+    gruppi = [("Documenti", "doc", ("ci", "pass", "pat", "nau", "ts", "cf", "tess", "brev", "altro") + tuple(k for k, v in pers.items() if v.gruppo == "doc")),
+              ("Carte e dati bancari", "ban", ("banc", "cc", "deb", "conto") + tuple(k for k, v in pers.items() if v.gruppo == "ban"))]
     return render_template("documenti.html", gruppi=[(t, k, [x for x in lista if x["d"].tipo in tp]) for t, k, tp in gruppi],
-                           tipi=TIPI_DOC, colori=COLORI_DOC, conti=[x for x in docs if x.tipo == "conto"], n=len(lista), nxt="/documenti")
+                           pers={k: dict(id=v.id, nome=v.nome, gruppo=v.gruppo, campi=v.cfg) for k, v in pers.items()}, campi_pers=CAMPI_PERS,
+                           nascosti=[x.chiave for x in TipoNascosto.query.filter_by(user_id=uid).all()],
+                           tipi={**TIPI_DOC, **{k: v.nome for k, v in pers.items()}}, colori=COLORI_DOC, conti=[x for x in docs if x.tipo == "conto"], n=len(lista), nxt="/documenti")
 
 
 def _tre_cf(t, nome=False):
@@ -2260,11 +2416,58 @@ def verifica_cf(cod, nome, cognome):
     return ""
 
 
+_LUNGH_IBAN = {"IT": 27, "SM": 27, "FR": 27, "DE": 22, "ES": 24, "GB": 22, "CH": 21, "NL": 18, "BE": 16, "AT": 20, "PT": 25, "LU": 20, "IE": 22, "VA": 22}
+_CIN_DISP = [1, 0, 5, 7, 9, 13, 15, 17, 19, 21, 2, 4, 18, 20, 11, 3, 6, 8, 12, 14, 16, 10, 22, 25, 24, 23]
+
+
+def _cin_it(bban):
+    tot = 0
+    for i, c in enumerate(bban):
+        n = int(c) if c.isdigit() else ord(c) - 65
+        tot += (_CIN_DISP[n] if c.isdigit() else _CIN_DISP[ord(c) - 65]) if i % 2 == 0 else n
+    return chr(65 + tot % 26)
+
+
+def iban_errore(v):
+    """Controlla un IBAN (struttura italiana: IT + 2 cifre controllo + CIN + ABI 5 + CAB 5 + conto 12). '' se corretto o ancora incompleto."""
+    s = "".join((v or "").split()).upper()
+    for c in s:
+        if not (c.isascii() and c.isalnum()):
+            return f"Carattere non valido «{c}»: l'IBAN contiene solo lettere e cifre."
+    if s[:2] and not s[:2].isalpha():
+        return "Le prime 2 posizioni sono il codice paese e devono essere lettere (ad esempio IT)."
+    if s[2:4] and not s[2:4].isdigit():
+        return "Le posizioni 3-4 sono le cifre di controllo dell'IBAN: devono essere 2 numeri."
+    paese = s[:2]
+    if paese == "IT":
+        if s[4:5] and not s[4].isalpha():
+            return "La posizione 5 è il CIN (codice di controllo nazionale): deve essere una lettera."
+        if s[5:10] and not s[5:10].isdigit():
+            return "Le posizioni 6-10 sono il codice ABI (la banca): devono essere 5 cifre."
+        if s[10:15] and not s[10:15].isdigit():
+            return "Le posizioni 11-15 sono il codice CAB (la filiale): devono essere 5 cifre."
+        if len(s) > 27:
+            return "Un IBAN italiano ha 27 caratteri: ce ne sono troppi."
+        if len(s) < 27:
+            return ""
+        if _cin_it(s[5:]) != s[4]:
+            return "Il CIN (posizione 5) non corrisponde ai codici ABI, CAB e al numero di conto: controlla di averli scritti giusti."
+    else:
+        if len(s) > 34:
+            return "Un IBAN ha al massimo 34 caratteri."
+        att = _LUNGH_IBAN.get(paese)
+        if (att and len(s) < att) or (not att and len(s) < 15):
+            return ""
+        if att and len(s) > att:
+            return f"Un IBAN {paese} ha {att} caratteri: ce ne sono troppi."
+    if int("".join(str(int(c, 36)) for c in s[4:] + s[:4])) % 97 != 1:
+        return "L'IBAN non è valido: le cifre di controllo (posizioni 3-4) non tornano."
+    return ""
+
+
 def iban_ok(v):
-    v = "".join((v or "").split()).upper()
-    if not re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{11,30}", v) or (v.startswith("IT") and len(v) != 27):
-        return False
-    return int("".join(str(int(c, 36)) for c in v[4:] + v[:4])) % 97 == 1
+    s = "".join((v or "").split()).upper()
+    return len(s) >= 15 and not iban_errore(s) and (len(s) == _LUNGH_IBAN.get(s[:2], len(s))) and s[:2].isalpha()
 
 
 def verifica_doc(f, tipo):
@@ -2299,6 +2502,12 @@ def verifica_doc(f, tipo):
         if f.get("c_iban", "").strip() and f.get("nuovo_conto") == "1" and not iban_ok(f.get("c_iban", "")):
             return "L'IBAN del conto non è valido."
     elif tipo not in ("altro", "cf"):
+        if tipo in ("tess", "brev"):
+            if not num:
+                return f"Inserisci il numero {'della tessera' if tipo == 'tess' else 'del brevetto'}."
+            ril, sca = _data_doc(f.get("rilascio")), _data_doc(f.get("scadenza"))
+            if ril and sca and ril > sca:
+                return "La data di emissione è successiva alla scadenza."
         if tipo == "nau":
             if not re.fullmatch(r"[A-Z]{2} ?\d{6,7}", num.upper()):
                 return "Il numero identificativo è formato da 2 lettere e 6-7 cifre (ad esempio AA 0123456)."
@@ -2320,7 +2529,7 @@ def verifica_doc(f, tipo):
                 return "Inserisci la data di rilascio della patente."
             if f.get("codici", "").strip() and not re.fullmatch(r"[0-9A-Za-z.,+/() \-]+", f.get("codici", "").strip()):
                 return "I codici contengono caratteri non validi."
-        if len(num) < 4:
+        if len(num) < 4 and tipo not in ("tess", "brev"):
             return "Il numero del documento non sembra valido."
     if tipo not in CARTE and tipo not in ("conto", "cf", "ts"):
         ril = _data_doc(f.get("rilascio"))
@@ -2334,16 +2543,25 @@ def verifica_doc(f, tipo):
 def documento_salva():
     uid = session["uid"]
     tipo = request.form.get("tipo", "altro")
-    if tipo not in TIPI_DOC:
+    pers = tipi_pers(uid)
+    if tipo not in TIPI_DOC and tipo not in pers:
         tipo = "altro"
+    cust = pers.get(tipo)
     ente = request.form.get("ente", "").strip()[:120]
-    if tipo == "altro":
+    if cust:
+        titolo = cust.nome
+    elif tipo == "altro":
         titolo = request.form.get("titolo", "").strip()[:120] or TIPI_DOC[tipo]
     elif tipo in ("banc", "cc", "deb", "conto") and ente:
         titolo = f"{ente.upper()} - {TIPI_DOC[tipo]}"[:120]
     else:
         titolo = TIPI_DOC[tipo]
-    err = verifica_doc(request.form, tipo)
+    d0 = Documento.query.filter_by(id=int(request.form["id"]), user_id=uid).first() if request.form.get("id", "").isdigit() else None
+    if cust:
+        ha_img = bool(request.files.get("immagine") and request.files["immagine"].filename) or bool(d0 and d0.immagine and request.form.get("rimuovi_img") != "1")
+        err = verifica_pers(request.form, cust, ha_img)
+    else:
+        err = verifica_doc(request.form, tipo)
     if err:
         flash(err)
         return redirect("/documenti")
@@ -2354,8 +2572,9 @@ def documento_salva():
         if q.first():
             flash(f"Hai già inserito: {TIPI_DOC[tipo]}. Per aggiungerne un altro conferma l'avviso nella pagina.")
             return redirect("/documenti")
-    if tipo == "cf":
+    if tipo in ("cf", "tess", "brev"):
         ente = ""
+    if tipo == "cf":
         err = verifica_cf("".join(request.form.get("numero", "").split()).upper(), request.form.get("nome_p", ""), request.form.get("cognome_p", ""))
         if err:
             flash(err)
@@ -2387,10 +2606,21 @@ def documento_salva():
     d.nota = request.form.get("nota", "").strip()[:500]
     d.codici = request.form.get("codici", "").strip()[:60] if tipo == "pat" else ""
     d.numero2 = request.form.get("numero2", "").strip()[:20] if tipo == "nau" else ""
-    if tipo not in CARTE or request.form.get("rimuovi_img") == "1":
+    if cust:
+        cc = cust.cfg
+        d.nome_p, d.cognome_p = (d.nome_p if "nome" in cc else ""), (d.cognome_p if "cognome" in cc else "")
+        d.intestatario = f"{d.nome_p} {d.cognome_p}".strip()
+        d.numero = d.numero if "numero" in cc else ""
+        d.ente = ente if "ente" in cc else ""
+        d.rilascio = d.rilascio if "rilascio" in cc else None
+        d.scadenza = d.scadenza if "scadenza" in cc else None
+        d.iban = "".join(request.form.get("iban", "").split()).upper()[:40] if "iban" in cc else ""
+        d.nota = d.nota if "nota" in cc else ""
+    img_ok = tipo in IMG_TIPI or bool(cust and "immagine" in cust.cfg)
+    if not img_ok or request.form.get("rimuovi_img") == "1":
         d.immagine = d.img_tipo = None
     f = request.files.get("immagine")
-    if f and tipo in CARTE:
+    if f and img_ok:
         raw = f.read(700_001)
         mime = ("image/jpeg" if raw[:3] == b"\xff\xd8\xff" else "image/png" if raw[:8] == b"\x89PNG\r\n\x1a\n"
                 else "image/webp" if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP" else None)

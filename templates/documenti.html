@@ -2,6 +2,13 @@
 <style>
 dialog{border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--tx);padding:22px;width:min(540px,94vw);max-height:92vh;overflow:auto}
 .ddup{border-color:#f59e0b}.ddup h2{display:flex;gap:8px;align-items:center}.ddup h2::before{content:'⚠';color:#f59e0b}.ddup .ck{display:flex;align-items:center;gap:10px;font-weight:600;cursor:pointer;margin-bottom:14px}.ddup .ck input{width:20px;height:20px;min-height:0;accent-color:#d97706}.ddup .bb{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.ddup .bb button{width:auto;padding:10px 20px;min-height:44px;border-radius:12px}.ddup .bb .x{background:var(--bg);color:var(--mu)}.ddup #dupSi{background:#d97706;color:#fff}.ddup #dupSi:disabled{background:#94a3b8;opacity:.55;cursor:not-allowed}
+#dImp .impr[hidden]{display:none}#dImp .ih{display:flex;align-items:center;gap:8px;margin:0 0 12px}#dImp .ih h2{margin:0;font-size:20px}#dImp #impBack{width:36px;height:36px;min-height:0;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--bg);color:var(--mu);border:1px solid var(--line);flex:0 0 auto}
+#dImp .imv{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;padding:14px 16px;margin:0 0 10px;border-radius:14px;background:var(--bg);color:var(--tx);border:1px solid var(--line);font-weight:400}#dImp .imv:hover{border-color:var(--in);filter:none}#dImp .imv b{display:block;font-size:16px}#dImp .imv small{display:block;color:var(--mu);margin-top:2px;font-size:13px}#dImp .imv svg{flex:0 0 auto;color:var(--mu)}
+#dImp .bb{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}#dImp .bb button{width:auto;padding:10px 20px;min-height:44px;border-radius:12px}#dImp .bb .x{background:var(--bg);color:var(--mu)}
+#dImp .impc{display:grid;gap:6px}#dImp .impr{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}#dImp .ck{display:flex!important;align-items:center;gap:10px;font-weight:600;cursor:pointer;color:var(--tx);margin:0}#dImp .ck input{width:20px;height:20px;min-height:0;accent-color:var(--in)}#dImp .impr select{width:auto;min-height:36px;padding:4px 10px}#dImp .impr select:disabled{opacity:.4}#dImp .impr.on-f{background:#d1fae5;border-color:#10b981}#dImp .impr.on-o{background:#fde68a;border-color:#f59e0b}#dImp .impr.on-f select{border-color:#10b981}#dImp .impr.on-o select{border-color:#f59e0b}
+[data-theme=dark] #dImp .impr.on-f{background:rgba(16,185,129,.22);border-color:#10b981}[data-theme=dark] #dImp .impr.on-o{background:rgba(245,158,11,.25);border-color:#f59e0b}#dImp .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mu);margin:0}#dImp .leg i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:5px}
+#dImp .df .bb button{width:auto;padding:10px 20px;min-height:44px;border-radius:12px}#dImp .df .bb .x{background:var(--bg);color:var(--mu)}#dImp button[type=submit]:disabled{background:#94a3b8!important;opacity:.55;cursor:not-allowed}
+#impLista{display:grid;gap:8px;margin:0 0 16px}#impLista .ir{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}#impLista .ir>div{flex:1;min-width:0}#impLista .ir b{display:block}#impLista .ir small{color:var(--mu)}#impLista .ir button{width:auto;min-height:36px;padding:4px 12px;font-size:13px;border-radius:10px;background:var(--card);color:var(--tx);border:1px solid var(--line)}#impLista .ir .del{color:#b91c1c}#impLista form{margin:0}
 dialog::backdrop{background:rgba(10,15,30,.55)}
 dialog h2{margin:0 0 14px}
 .df{display:grid;gap:12px}.df label{display:grid;gap:4px;font-size:14px;font-weight:700;color:var(--mu)}.df label input,.df label select,.df label textarea{font-weight:400;color:var(--tx)}
@@ -14,7 +21,7 @@ dialog h2{margin:0 0 14px}
 .df .bb button{width:auto;padding:10px 20px;min-height:44px;border-radius:12px}.df .bb .x{background:var(--bg);color:var(--mu)}.df .bb .dl{background:var(--r);color:#fff;margin-right:auto}
 .pal span.nc{background:linear-gradient(135deg,var(--card) 44%,var(--mu) 46% 54%,var(--card) 56%)}
 .dtop{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 6px}
-.dtop h1{margin:0}.dbt{display:flex;gap:10px;flex-wrap:wrap}.dbt button{width:auto;padding:10px 20px}.dbt .b2{background:#4f46e5}[data-theme=dark] .dbt .b2{background:#6366f1}
+.dtop h1{margin:0}.dbt{display:flex;gap:10px;flex-wrap:wrap}.dbt button{width:auto;padding:10px 20px}.dbt .ing{background:var(--card);color:var(--mu);border:1px solid var(--line);padding:10px 12px;display:grid;place-items:center}.dbt .ing:hover{color:var(--tx);filter:none}.dbt .b2{background:#4f46e5}[data-theme=dark] .dbt .b2{background:#6366f1}
 .dsec{display:flex;align-items:center;gap:10px;margin:26px 0 12px;font-size:19px;font-family:'Bricolage Grotesque',sans-serif}
 .dsec small{color:var(--mu);font:600 14px 'DM Sans',sans-serif}
 .pb{height:9px;border-radius:99px;background:var(--bg);overflow:hidden;margin-top:4px;border:1px solid var(--line)}.pb i{display:block;height:100%;border-radius:99px;background:var(--g)}
@@ -78,6 +85,14 @@ body.dnd,body.dnd *{cursor:grabbing!important;user-select:none!important}
 .dc.pp .nm{font-size:7.5cqw;letter-spacing:.08em;color:#f3d98b}
 .dc.pp small{font-size:6cqw;letter-spacing:.14em;text-transform:uppercase;opacity:.85;color:#f3d98b}
 .dc.cfc .cfn{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;font-size:5.4cqw}.dc.cfc .bcode{position:absolute;left:6cqw;right:6cqw;bottom:4cqw;height:5cqw;width:auto;opacity:.55;color:#fff}.dc.cfc .bd{padding-bottom:6cqw}
+.dc.cn{background:#f8fafc;color:#0f172a;border-radius:2.2cqw;padding:0;gap:0;box-shadow:0 1.2cqw 3cqw rgba(0,0,0,.28),inset 0 0 0 .3cqw rgba(15,23,42,.08);background-image:repeating-linear-gradient(0deg,transparent 0 6.6cqw,rgba(15,23,42,.045) 6.6cqw 6.9cqw)}
+.dc.cn::after{inset:auto 0 0 auto;width:12cqw;height:12cqw;background:linear-gradient(135deg,transparent 50%,color-mix(in srgb,var(--cc) 35%,#e2e8f0) 50%);box-shadow:none;border-top-left-radius:2.2cqw}
+.dc.cn .bn{display:flex;align-items:center;gap:3cqw;background:var(--cc);color:#fff;padding:3.4cqw 5cqw;font:800 4.4cqw 'Bricolage Grotesque',sans-serif;letter-spacing:.1em;text-transform:uppercase}
+.dc.cn .bn .bk{width:8cqw;height:8cqw;stroke:#fff}
+.dc.cn .bd2{padding:4cqw 5.5cqw;display:grid;gap:2.6cqw}
+.dc.cn small{font-size:2.8cqw;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:700;display:block}
+.dc.cn .ib{font:700 5.4cqw ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;border:.35cqw solid color-mix(in srgb,var(--cc) 40%,#cbd5e1);border-radius:1.6cqw;background:#fff;padding:2cqw 3cqw;color:#0f172a}
+.dc.cn .rl{display:grid;grid-template-columns:1fr 1fr;gap:3cqw}.dc.cn .rl>div{border-bottom:.3cqw solid rgba(15,23,42,.18);padding-bottom:1.2cqw;min-width:0}.dc.cn .rl b{display:block;font-size:4cqw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0f172a}
 .dc.cn .bk{width:11cqw;height:11cqw;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .dc.id{padding:0;gap:0;color:#0b3a46;background:linear-gradient(135deg,color-mix(in srgb,var(--cc) 18%,#fff),color-mix(in srgb,var(--cc) 38%,#fff) 70%,color-mix(in srgb,var(--cc) 52%,#fff))}
 .dc.id::after{background:linear-gradient(115deg,rgba(255,255,255,.45) 0,rgba(255,255,255,0) 40%)}
@@ -110,15 +125,15 @@ body.dnd,body.dnd *{cursor:grabbing!important;user-select:none!important}
 #fDoc .cimg{display:grid;gap:8px}#fDoc .pv{display:flex;align-items:center;gap:12px;min-height:64px}#fDoc .pv img{width:110px;aspect-ratio:1.586;object-fit:contain;border-radius:8px;background:var(--bg);border:1px solid var(--line)}#fDoc .rimg{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#fDoc .rimg .fl{display:inline-block;cursor:pointer;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:9px 16px;font-weight:700;font-size:14px}#fDoc .rimg .fl input{display:none}#fDoc .rimg button{width:auto;padding:9px 16px}#fDoc .cfw{display:grid;gap:10px}#fDoc .ck{display:flex!important;grid-template-columns:none;align-items:center;gap:10px;font-size:15px;color:var(--tx);font-weight:600;cursor:pointer}#fDoc .ck input{width:20px;height:20px;min-height:0;accent-color:var(--in)}#fDoc button[type=submit]:disabled{background:#94a3b8!important;color:#fff;opacity:.55;cursor:not-allowed;box-shadow:none}#fDoc input.bad:focus{outline:2px solid #ef4444!important;outline-offset:0}#fDoc input.bad,#fDoc select.bad{border-color:#ef4444!important;box-shadow:0 0 0 3px rgba(239,68,68,.25)}.mkw{position:relative;display:block}.mk{position:absolute;inset:0;display:flex;align-items:center;pointer-events:none;color:var(--mu);white-space:pre;opacity:.8;font-variant-numeric:tabular-nums}.mk i{visibility:hidden;font-style:normal}.mk[hidden]{display:none}#fDoc .cferr{padding:10px 12px;border-radius:12px;background:#fee2e2;color:#991b1b;font-size:14px;font-weight:600;border:1px solid #fca5a5}:root[data-theme=dark] #fDoc .cferr,body.dark #fDoc .cferr{background:#450a0a;color:#fecaca;border-color:#991b1b}#fDoc .cfres{font:700 17px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;padding:10px 12px;border-radius:12px;background:var(--card);border:1px dashed var(--line);text-align:center;color:var(--mu)}#fDoc .cfres.ok{color:var(--gt);border-style:solid}#fDoc .cassoc{display:grid;gap:10px}#fDoc .cassoc>button{width:auto;justify-self:start;padding:8px 16px}#fDoc .nc2{display:grid;gap:10px;padding:12px;border-radius:14px;background:color-mix(in srgb,var(--in) 8%,var(--card));border:1px solid var(--line)}#fDoc .r2{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr}
 </style>
 
-<div class="dtop"><h1 class="ph">{{ ic('doc') }}Documenti</h1><div class="dbt"><button type="button" id="nuovoDoc">+ Documento</button><button type="button" id="nuovaBanca" class="b2">+ Carte / dati bancari</button></div></div>
+<div class="dtop"><h1 class="ph">{{ ic('doc') }}Documenti</h1><div class="dbt"><button type="button" id="nuovoDoc">+ Documento</button><button type="button" id="nuovaBanca" class="b2">+ Carte / dati bancari</button><button type="button" id="impTipi" class="ing" title="Impostazioni: nuovi tipi di documento o di carta" aria-label="Impostazioni dei tipi"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div></div>
 <p class="mu" style="margin:0 0 4px;font-size:14px">Tocca un documento per vedere tutti i dati.</p>
 
 
 
 {% macro mask(n) %}{{ ('•••• ' ~ n[-4:]) if n|length > 4 else n }}{% endmacro %}
 {% macro mm(d) %}{{ '%02d/%02d'|format(d.month, d.year % 100) }}{% endmacro %}
-{% set DEF = {'ci':'#0ea5a4','pass':'#7f1d1d','pat':'#be185d','nau':'#0369a1','ts':'#15803d','cf':'#0d9488','banc':'#0f766e','cc':'#1e293b','deb':'#b45309','conto':'#4338ca','altro':'#64748b'} %}
-{% macro art(d) %}{% set c = d.colore or DEF[d.tipo] %}{% set t = d.tipo %}<div class="dw">
+{% set DEF = {'ci':'#0ea5a4','pass':'#7f1d1d','pat':'#be185d','nau':'#0369a1','ts':'#15803d','tess':'#7c3aed','brev':'#0891b2','cf':'#0d9488','banc':'#0f766e','cc':'#1e293b','deb':'#b45309','conto':'#4338ca','altro':'#64748b'} %}
+{% macro art(d) %}{% set c = d.colore or DEF[d.tipo] or '#64748b' %}{% set t = d.tipo %}<div class="dw">
 {% if d.img %}<img class="dimg" src="{{ d.img }}" alt="{{ tipi[t] }}">
 {% elif t == 'pass' %}<div class="dc pp" style="--cc:{{ c }}"><div class="lg">Passaporto</div><div class="em"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div><div><small>{{ d.intestatario or d.titolo }}</small><div class="nm">{{ mask(d.numero) }}</div></div></div>
 {% elif t == 'ci' %}<div class="dc id" style="--cc:{{ c }}"><svg class="wv" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 0H100V9C80 16 62 4 40 10C22 15 10 8 0 12Z"/></svg>
@@ -128,8 +143,8 @@ body.dnd,body.dnd *{cursor:grabbing!important;user-select:none!important}
 <div class="idz"><i></i><i></i></div></div>
 {% elif t == 'cf' %}<div class="dc cfc" style="--cc:{{ c }}"><div class="hd"><span>Codice fiscale</span><small>ITALIA</small></div><div class="bd"><div class="ln" style="justify-content:flex-end"><small>Titolare</small><b>{{ d.intestatario or '—' }}</b><small>Codice fiscale</small><b class="cfn">{{ d.numero or '— — — — —' }}</b></div></div><svg class="bcode" viewBox="0 0 120 14" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0v14M3 0v14M5 0v14M9 0v14M11 0v14M15 0v14M17 0v14M22 0v14M24 0v14M28 0v14M31 0v14M33 0v14M38 0v14M40 0v14M45 0v14M47 0v14M52 0v14M54 0v14M58 0v14M61 0v14M63 0v14M68 0v14M70 0v14M75 0v14M77 0v14M82 0v14M85 0v14M87 0v14M92 0v14M94 0v14M99 0v14M101 0v14M106 0v14M108 0v14M113 0v14M116 0v14M119 0v14" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></div>
 {% elif t in ('banc','cc','deb') %}<div class="dc" style="--cc:{{ c }}"><div class="cl"><span class="lg">{{ 'Bancomat' if t == 'banc' else 'Debito' if t == 'deb' else 'Credito' }}</span><svg class="nfc" viewBox="0 0 24 24"><path d="M8 7c2 3 2 7 0 10M12 5c3.500 4 3.500 10 0 14M16 3c4.500 5 4.500 13 0 18"/></svg></div><div class="chip"></div><div class="nm">{% if d.numero %}{{ ('•••• •••• •••• ' ~ d.numero[-4:]) if d.numero|length > 4 else d.numero }}{% else %}•••• •••• •••• ••••{% endif %}</div><div class="rw"><div style="min-width:0"><span>Intestatario</span><b>{{ d.intestatario or '—' }}</b></div><div style="text-align:right"><span>Scade</span><b>{{ mm(d.scadenza) if d.scadenza else '--/--' }}</b></div></div></div>
-{% elif t == 'conto' %}<div class="dc cn" style="--cc:{{ c }}"><div class="cl"><span class="lg">Conto corrente</span><svg class="bk" viewBox="0 0 24 24"><path d="M3 10l9-6 9 6M5 10v8M9.500 10v8M14.500 10v8M19 10v8M3 20h18"/></svg></div><div style="flex:1"></div><div class="nm" style="font-size:5.4cqw">{% if d.iban %}{{ d.iban[:4] }} •••• •••• {{ d.iban[-4:] }}{% else %}IBAN ••••{% endif %}</div><div class="rw"><div style="min-width:0"><span>Intestatario</span><b>{{ d.intestatario or '—' }}</b></div><div style="text-align:right;min-width:0"><span>Banca</span><b>{{ d.ente or '—' }}</b></div></div></div>
-{% else %}<div class="dc" style="--cc:{{ c }}"><div class="hd"><span>{{ {'ci':"Carta d'identità",'pat':'Patente di guida','nau':'Patente nautica','ts':'Tessera sanitaria','altro':d.titolo}[t] }}</span><small>{{ 'ID' if t == 'ci' else 'DRIVING' if t == 'pat' else 'BOAT' if t == 'nau' else 'SALUTE' if t == 'ts' else 'DOC' }}</small></div><div class="bd"><div class="ft"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.500" r="4.500"/><path d="M3 24c0-5.500 4-9 9-9s9 3.500 9 9z"/></svg></div><div class="ln"><small>Titolare</small><b>{{ d.intestatario or '—' }}</b><small>Numero</small><b>{{ mask(d.numero) if d.numero else '—' }}</b><small>Scadenza</small><b>{{ d.scadenza|data_it if d.scadenza else '—' }}</b></div></div></div>
+{% elif t == 'conto' %}<div class="dc cn" style="--cc:{{ c }}"><div class="bn"><svg class="bk" viewBox="0 0 24 24"><path d="M3 10l9-6 9 6M5 10v8M9.500 10v8M14.500 10v8M19 10v8M3 20h18"/></svg><span>Conto corrente</span></div><div class="bd2"><small>IBAN</small><div class="ib">{% if d.iban %}{{ d.iban[:4] }} •••• •••• {{ d.iban[-4:] }}{% else %}IBAN ••••{% endif %}</div><div class="rl"><div><small>Intestatario</small><b>{{ d.intestatario or '—' }}</b></div><div><small>Banca</small><b>{{ d.ente or '—' }}</b></div></div></div></div>
+{% else %}<div class="dc" style="--cc:{{ c }}"><div class="hd"><span>{{ {'ci':"Carta d'identità",'pat':'Patente di guida','nau':'Patente nautica','ts':'Tessera sanitaria','tess':'Tessera','brev':'Brevetto','altro':d.titolo}.get(t, d.titolo) }}</span><small>{{ 'ID' if t == 'ci' else 'DRIVING' if t == 'pat' else 'BOAT' if t == 'nau' else 'SALUTE' if t == 'ts' else 'CARD' if t == 'tess' else 'CERT' if t == 'brev' else 'DOC' }}</small></div><div class="bd"><div class="ft"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.500" r="4.500"/><path d="M3 24c0-5.500 4-9 9-9s9 3.500 9 9z"/></svg></div><div class="ln"><small>Titolare</small><b>{{ d.intestatario or '—' }}</b><small>Numero</small><b>{{ mask(d.numero) if d.numero else '—' }}</b><small>Scadenza</small><b>{{ d.scadenza|data_it if d.scadenza else '—' }}</b></div></div></div>
 {% endif %}</div>{% endmacro %}
 
 {% for titolo, chiave, lst in gruppi %}
@@ -138,14 +153,14 @@ body.dnd,body.dnd *{cursor:grabbing!important;user-select:none!important}
 <button type="button" class="dt" data-id="{{ d.id }}" data-d='{{ x.raw|tojson }}' aria-label="Apri {{ x.nome }}">
 <div class="slot art">{{ art({'tipo': d.tipo, 'titolo': d.titolo, 'intestatario': d.intestatario, 'numero': d.numero, 'ente': d.ente, 'scadenza': d.scadenza, 'iban': d.iban, 'colore': d.colore, 'img': x.img}) }}</div>
 <div class="cap"><b>{{ x.nome }}</b>{% if d.intestatario %}<span class="mu">{{ d.intestatario }}</span>{% endif %}
-{% if x.giorni is none %}<span class="st">Senza scadenza</span>{% elif x.giorni < 0 %}<span class="st scaduta">Scaduto da {{ -x.giorni }} g</span>{% elif x.giorni == 0 %}<span class="st scaduta">Scade oggi</span>{% elif x.giorni <= 180 %}<span class="st {{ x.stato }}">Scade tra {{ x.giorni }} g · {{ d.scadenza|data_it }}</span>{% else %}<span class="st ok">Valido fino al {{ d.scadenza|data_it }}</span>{% endif %}{% if x.perc is not none %}<div class="pb {{ x.stato }}"><i style="width:{{ x.perc }}%"></i></div><div class="pbl"><span>{{ d.rilascio|data_it if d.rilascio else '' }}</span><span>{{ d.scadenza|data_it }}</span></div>{% endif %}</div>
+{% if x.giorni is none %}{% if d.tipo != 'conto' %}<span class="st">Senza scadenza</span>{% endif %}{% elif x.giorni < 0 %}<span class="st scaduta">Scaduto da {{ -x.giorni }} g</span>{% elif x.giorni == 0 %}<span class="st scaduta">Scade oggi</span>{% elif x.giorni <= 180 %}<span class="st {{ x.stato }}">Scade tra {{ x.giorni }} g · {{ d.scadenza|data_it }}</span>{% else %}<span class="st ok">Valido fino al {{ d.scadenza|data_it }}</span>{% endif %}{% if x.perc is not none %}<div class="pb {{ x.stato }}"><i style="width:{{ x.perc }}%"></i></div><div class="pbl"><span>{{ d.rilascio|data_it if d.rilascio else '' }}</span><span>{{ d.scadenza|data_it }}</span></div>{% endif %}</div>
 </button>{% endfor %}</div>{% else %}<p class="mu dvuoto">{{ 'Nessun documento ancora: usa «+ Documento».' if chiave == 'doc' else 'Nessuna carta o conto ancora: usa «+ Carte / dati bancari».' }}</p>{% endif %}
 </section>{% endfor %}
 
 <details class="dguida"><summary>Immagini da cartella (opzionale)</summary>
 <p>Oltre al caricamento dal modulo, puoi mettere le immagini nella cartella <code>static/documenti/</code> del progetto, in formato <code>png</code>, <code>jpg</code>, <code>webp</code> o <code>svg</code>. Il <b>nome del file</b> decide dove viene usata:</p>
 <ul>
-<li><b>Documenti:</b> <code>ci</code> carta d'identità · <code>pass</code> passaporto · <code>pat</code> patente · <code>nau</code> patente nautica · <code>ts</code> tessera sanitaria · <code>cf</code> codice fiscale · <code>altro</code> altro documento. Esempio: <code>ci.png</code></li>
+<li><b>Documenti:</b> <code>ci</code> carta d'identità · <code>pass</code> passaporto · <code>pat</code> patente · <code>nau</code> patente nautica · <code>ts</code> tessera sanitaria · <code>tess</code> tessera · <code>brev</code> brevetto · <code>cf</code> codice fiscale · <code>altro</code> altro documento. Esempio: <code>ci.png</code></li>
 <li><b>Carte e conti, per banca:</b> <code>tipo-banca.png</code>, con tipo = <code>banc</code> bancomat · <code>cc</code> carta di credito · <code>deb</code> carta di debito · <code>conto</code> conto corrente. Esempi: <code>banc-intesa.png</code>, <code>cc-fineco.png</code>, <code>deb-mediolanum.png</code></li>
 <li><b>Tutte le carte di una banca:</b> solo il nome della banca, per esempio <code>intesa.png</code></li>
 <li><b>Una carta di quel tipo, qualunque banca:</b> solo il tipo, per esempio <code>cc.png</code></li>
@@ -155,6 +170,25 @@ body.dnd,body.dnd *{cursor:grabbing!important;user-select:none!important}
 <dialog id="dDet"><div class="art" id="detArt"></div><h2 id="detT" style="margin:0 0 8px"></h2><div id="detB"></div><dl id="detL"></dl><div id="detA"></div>
 <div class="azs"><button type="button" class="x" data-chiudi>Chiudi</button><form method="post" id="fDel" style="margin:0" onsubmit="return confirm('Eliminare questo documento?')"><input type="hidden" name="_t" value="{{ csrf }}"><button class="del">Elimina</button></form><button type="button" id="detMod">Modifica</button></div></dialog>
 
+<dialog id="dImp"><div class="ih"><button type="button" id="impBack" hidden aria-label="Indietro" title="Indietro"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button><h2 id="impTit">Impostazioni dei tipi</h2></div>
+<div id="impMenu">
+<p class="mu" style="margin:0 0 12px;font-size:14px;line-height:1.5">Gestisci le voci dei menu a tendina di documenti e carte.</p>
+<button type="button" class="imv" data-vai="add"><span><b>Aggiungi o modifica voci</b><small>Crea un nuovo tipo di documento o di carta e scegli i campi</small></span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+<button type="button" class="imv" data-vai="rem"><span><b>Rimuovi voci</b><small id="impRemN">Togli voci dai menu o ripristinale</small></span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+<div class="bb" style="margin-top:14px"><button type="button" class="x" data-chiudi>Chiudi</button></div>
+</div>
+<div id="impAdd" hidden>
+<form method="post" action="/documenti/tipi/salva" class="df" id="fImp"><input type="hidden" name="_t" value="{{ csrf }}"><input type="hidden" name="id">
+<b id="impT">Nuovo tipo</b>
+<label>Nome del tipo<input name="nome" maxlength="40" autocomplete="off"></label>
+<label>Compare tra<select name="gruppo"><option value="doc">Documenti</option><option value="ban">Carte e dati bancari</option></select></label>
+<p class="leg"><span><i style="background:#10b981"></i>Facoltativo</span><span><i style="background:#f59e0b"></i>Obbligatorio</span></p>
+<div class="impc">{% for k, v in campi_pers.items() %}<div class="impr" data-k="{{ k }}"><label class="ck"><input type="checkbox" name="usa_{{ k }}"><span>{{ v }}</span></label><select name="req_{{ k }}" disabled aria-label="{{ v }}: obbligatorio o facoltativo"><option value="f">Facoltativo</option><option value="o">Obbligatorio</option></select></div>{% endfor %}</div>
+<div class="bb"><button type="button" class="x" id="impNuovo" hidden>Annulla modifica</button><button type="button" class="x" data-chiudi>Chiudi</button><button type="submit" id="impSalva" disabled>Salva tipo</button></div>
+</form>
+</div>
+<div id="impRem" hidden><div id="impLista"></div><div class="bb"><button type="button" class="x" data-chiudi>Chiudi</button></div></div>
+</dialog>
 <dialog id="dDup" class="ddup"><h2 id="dupT">Documento già presente</h2><p id="dupP" style="margin:0 0 12px;line-height:1.5"></p>
 <label class="ck"><input type="checkbox" id="dupOk"><span>Confermo di voler inserire un altro documento di questo tipo</span></label>
 <div class="bb"><button type="button" class="x" id="dupNo">No, annulla</button><button type="button" id="dupSi" disabled>Sì, aggiungi comunque</button></div></dialog>
@@ -164,7 +198,7 @@ body.dnd,body.dnd *{cursor:grabbing!important;user-select:none!important}
 <label>Tipo<select name="tipo">{% for k, v in tipi.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
 <label id="wTit" hidden>Nome del documento<input name="titolo" maxlength="120" placeholder="Es. Tessera sanitaria"></label>
 <div id="wCfChk" hidden><label class="ck"><input type="checkbox" id="cfNo"><span>Non ricordo il codice: calcolalo</span></label></div>
-<div class="r2"><label>Nome<input name="nome_p" maxlength="60" autocomplete="off"></label><label>Cognome<input name="cognome_p" maxlength="60" autocomplete="off"></label></div>
+<div class="r2" id="rNomi"><label id="wNome"><span id="lNome">Nome</span><input name="nome_p" maxlength="60" autocomplete="off"></label><label id="wCogn"><span id="lCogn">Cognome</span><input name="cognome_p" maxlength="60" autocomplete="off"></label></div>
 <div id="cfCalc" hidden class="nc2"><b>Dati per il calcolo</b>
 <div class="r2"><label>Data di nascita<input type="date" id="cfData"></label><label>Sesso<select id="cfSex"><option value="">Scegli…</option><option value="M">Maschio</option><option value="F">Femmina</option></select></label></div>
 <label>Luogo di nascita (comune o stato estero)<input id="cfLuogo" list="cfList" autocomplete="off" placeholder="Scrivi e scegli dall'elenco, es. Padova"></label><datalist id="cfList"></datalist>
@@ -172,20 +206,20 @@ body.dnd,body.dnd *{cursor:grabbing!important;user-select:none!important}
 <label id="wNum"><span id="lNum">Numero documento</span><input name="numero" maxlength="60" autocomplete="off"></label>
 <label id="wNum2" hidden><span>Patente n°</span><input name="numero2" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="1234"></label>
 <label id="wEnte"><span id="lEnte">Rilasciato da</span><input name="ente" maxlength="120"></label>
-<label id="wIban" hidden>IBAN<input name="iban" maxlength="40" placeholder="IT00 X000 0000 0000 0000 0000 000" autocomplete="off"></label>
+<label id="wIban" hidden><span id="lIban">IBAN</span><input name="iban" maxlength="40" placeholder="IT00 X000 0000 0000 0000 0000 000" autocomplete="off"></label>
 <label id="wNasc" hidden>Data di nascita <small class="mu">(serve per calcolare la scadenza dal compleanno)</small><input type="date" id="nascita"></label>
 <label id="wCodici" hidden>Codici (se presenti)<input name="codici" maxlength="60" autocomplete="off"></label>
 <div class="r2" id="rDate"><label id="wRil"><span id="lRil">Data di rilascio</span><input type="date" name="rilascio"></label><label id="wScad"><span id="lScad">Data di scadenza</span><input type="date" name="scadenza"></label></div>
 
 <small id="hScad" class="mu" hidden>Scadenza calcolata: il compleanno nel decimo anno dopo il rilascio. Puoi modificarla.</small>
-<div id="wImg" hidden class="cimg"><b>Immagine della carta <small class="mu">(facoltativa)</small></b>
+<div id="wImg" hidden class="cimg"><b><span id="lImg">Immagine della carta</span> <small class="mu">(facoltativa)</small></b>
 <div class="pv"><img id="pvImg" alt="" hidden><span id="pvTxt" class="mu">Nessuna immagine: verrà usato il disegno generico.</span></div>
 <div class="rimg"><label class="fl">Scegli immagine<input type="file" name="immagine" accept="image/png,image/jpeg,image/webp" id="fImg"></label><button type="button" class="x" id="rmImg" hidden>Rimuovi</button><input type="hidden" name="rimuovi_img" value="0"></div>
-<small class="mu">Una foto o uno screenshot della carta, senza numero né CVV in vista.</small></div>
+<small class="mu" id="hImg">Una foto o uno screenshot della carta, senza numero né CVV in vista.</small></div>
 <div id="wConto" hidden class="cassoc"><label>Conto associato<select name="conto_id"><option value="">Nessun conto</option>{% for c in conti %}<option value="{{ c.id }}">{{ c.titolo }}{% if c.intestatario %} · {{ c.intestatario }}{% endif %}</option>{% endfor %}</select></label>
 <button type="button" class="x" id="assocB">＋ Associa nuovo conto</button>
 <div id="wNuovoC" hidden class="nc2"><input type="hidden" name="nuovo_conto" value="0"><b>Dati del conto</b><label>Intestatario del conto<input name="c_intestatario" maxlength="120" placeholder="Se vuoto, uguale all'intestatario della carta"></label><label>IBAN<input name="c_iban" maxlength="40" placeholder="IT00 X000 0000 0000 0000 0000 000" autocomplete="off"></label><label>Numero conto (facoltativo)<input name="c_numero" maxlength="60"></label><small class="mu">La banca è quella indicata sopra.</small></div></div>
-<label id="wNota">Note<textarea name="nota" rows="1" maxlength="500"></textarea></label>
+<label id="wNota"><span id="lNota">Note</span><textarea name="nota" rows="1" maxlength="500"></textarea></label>
 <div id="fErr" class="cferr" role="alert" hidden></div>
 <div class="bb"><button type="button" class="x" data-chiudi>Annulla</button><button type="submit">Salva</button></div>
 </form></dialog>
@@ -201,15 +235,27 @@ document.querySelectorAll('[data-chiudi]').forEach(b=>b.onclick=()=>b.closest('d
 // campi che cambiano col tipo
 function adatta(){
  const t=f.tipo.value,carta=t=='banc'||t=='cc'||t=='deb',conto=t=='conto',cf=t=='cf';
- $('#lNum').textContent=carta?'Numero carta':conto?'Numero conto (facoltativo)':t=='pat'?'Numero patente':t=='nau'?'Numero identificativo':t=='ts'?'Numero di identificazione della tessera':t=='cf'?'Codice fiscale':t=='pass'?'Passaporto n°':t=='ci'?"Numero carta d'identità":'Numero documento';
+ $('#lNum').textContent=carta?'Numero carta':conto?'Numero conto (facoltativo)':t=='pat'?'Numero patente':t=='nau'?'Numero identificativo':t=='ts'?'Numero di identificazione della tessera':t=='cf'?'Codice fiscale':t=='pass'?'Passaporto n°':t=='tess'?'Tessera n°':t=='brev'?'Brevetto n°':t=='ci'?"Numero carta d'identità":'Numero documento';
  $('#lEnte').textContent=carta||conto?'Banca':t=='ci'?'Rilasciato da (comune)':t=='pat'?'Rilasciata da (motorizzazione)':t=='nau'?'Rilasciata da':t=='pass'?'Rilasciato da (Autorità)':t=='ts'?"Numero di identificazione dell'istituzione":'Rilasciato da';f.numero.maxLength=cf?16:t=='nau'?10:60;f.numero.placeholder=t=='nau'?'AA 0123456':'';f.ente.placeholder=t=='pass'?'Ministero degli affari esteri':'';mkAgg();$('#wNum2').hidden=t!='nau';
- $('#wNota').hidden=cf;$('#wIban').hidden=!conto;$('#wCfChk').hidden=!cf;if(!cf){$('#cfNo').checked=false;$('#cfCalc').hidden=true}$('#wEnte').hidden=cf;$('#rDate').hidden=cf||conto;$('#wConto').hidden=!carta;$('#wImg').hidden=!carta;if(!carta)apriNC(false);$('#wRil').hidden=conto||cf||t=='ts';$('#lRil').textContent=carta?'Data di emissione (MM/AA), se presente':t=='nau'?'Rilasciata il':'Data di rilascio';$('#wScad').hidden=conto||cf;$('#wTit').hidden=t!='altro';
- $('#lScad').textContent=carta?'Scadenza (MM/AA)':'Data di scadenza';{const seq=t=='ts'?['wEnte','wNum','wNum2','wIban','wNasc','rDate','wCodici']:t=='pat'?['rDate','wEnte','wNum','wNum2','wCodici','wIban','wNasc']:['wNum','wNum2','wEnte','wIban','wNasc','rDate','wCodici'];let prev=$('#cfCalc');seq.forEach(i=>{prev.after($('#'+i));prev=$('#'+i)})}
+ $('#wNota').hidden=cf;$('#wIban').hidden=!conto;$('#wCfChk').hidden=!cf;if(!cf){$('#cfNo').checked=false;$('#cfCalc').hidden=true}$('#wEnte').hidden=cf||t=='tess'||t=='brev';$('#rDate').hidden=cf||conto;$('#wConto').hidden=!carta;const tb=t=='tess'||t=='brev';$('#wImg').hidden=!(carta||tb);$('#lImg').textContent=carta?'Immagine della carta':t=='tess'?'Immagine della tessera':'Immagine del brevetto';$('#hImg').textContent=carta?'Una foto o uno screenshot della carta, senza numero né CVV in vista.':'Una foto o uno screenshot (facoltativa).';$('#lNota').textContent=t=='tess'?'Note (descrivi la tipologia di tessera)':t=='brev'?'Note (descrivi la tipologia di brevetto)':'Note';if(!carta)apriNC(false);$('#wRil').hidden=conto||cf||t=='ts';$('#lRil').textContent=carta?'Data di emissione (MM/AA), se presente':t=='nau'?'Rilasciata il':tb?'Data di emissione (se presente)':'Data di rilascio';$('#wScad').hidden=conto||cf;$('#wTit').hidden=t!='altro';
+ $('#lScad').textContent=carta?'Scadenza (MM/AA)':tb?'Data di scadenza (se presente)':'Data di scadenza';{const seq=t=='ts'?['wEnte','wNum','wNum2','wIban','wNasc','rDate','wCodici']:t=='pat'?['rDate','wEnte','wNum','wNum2','wCodici','wIban','wNasc']:['wNum','wNum2','wEnte','wIban','wNasc','rDate','wCodici'];let prev=$('#cfCalc');seq.forEach(i=>{prev.after($('#'+i));prev=$('#'+i)})}
  $('#wCodici').hidden=t!='pat';
  const tp=carta?'text':'date';
  [f.scadenza,f.rilascio].forEach(el=>{if(el.type!=tp){el.type=tp;el.value='';
   if(carta){el.placeholder='MM/AA';el.maxLength=5;el.inputMode='numeric';el.autocomplete='off'}
-  else{el.placeholder='';el.removeAttribute('maxlength');el.removeAttribute('inputmode')}}})
+  else{el.placeholder='';el.removeAttribute('maxlength');el.removeAttribute('inputmode')}}});
+ // reset delle voci che i tipi personalizzati possono cambiare
+ ['wNome','wCogn','rNomi'].forEach(i=>$('#'+i).hidden=false);$('#lNome').textContent='Nome';$('#lCogn').textContent='Cognome';$('#lIban').textContent='IBAN';
+ const cu=PERS[t];if(cu){const c=cu.campi,op=k=>c[k]=='f'?' (facoltativo)':'';
+  $('#wNome').hidden=!c.nome;$('#wCogn').hidden=!c.cognome;$('#rNomi').hidden=!(c.nome||c.cognome);$('#lNome').textContent='Nome'+op('nome');$('#lCogn').textContent='Cognome'+op('cognome');
+  $('#wNum').hidden=!c.numero;$('#lNum').textContent='Numero'+op('numero');
+  $('#wEnte').hidden=!c.ente;$('#lEnte').textContent=(cu.gruppo=='ban'?'Banca':'Rilasciato da')+op('ente');
+  $('#wIban').hidden=!c.iban;$('#lIban').textContent='IBAN'+op('iban');
+  $('#wRil').hidden=!c.rilascio;$('#wScad').hidden=!c.scadenza;$('#rDate').hidden=!(c.rilascio||c.scadenza);$('#lRil').textContent='Data di rilascio'+op('rilascio');$('#lScad').textContent='Data di scadenza'+op('scadenza');
+  $('#wNota').hidden=!c.nota;$('#lNota').textContent='Note'+op('nota');
+  $('#wImg').hidden=!c.immagine;$('#lImg').textContent='Immagine';$('#hImg').textContent='Una foto o uno screenshot.';
+  $('#wTit').hidden=true;$('#wConto').hidden=true;$('#wNasc').hidden=true}
+ else $('#wNum').hidden=false;
 }
 function apriNC(v){$('#wNuovoC').hidden=!v;f.nuovo_conto.value=v?'1':'0';$('#assocB').textContent=v?'✕ Annulla nuovo conto':'＋ Associa nuovo conto';f.conto_id.disabled=v}
 $('#assocB').onclick=()=>{apriNC($('#wNuovoC').hidden);valida()};
@@ -225,8 +271,9 @@ fImg.addEventListener('change',()=>{
   c.toBlob(b=>{const dt=new DataTransfer();dt.items.add(new File([b],'carta.jpg',{type:'image/jpeg'}));fImg.files=dt.files;anteprima(URL.createObjectURL(b))},'image/jpeg',.85);URL.revokeObjectURL(u)};
  img.onerror=()=>{fImg.value='';anteprima(null)};img.src=u});
 rmImg.onclick=()=>{fImg.value='';f.rimuovi_img.value='1';anteprima(null)};
-const GR={doc:['ci','pass','pat','nau','ts','cf','altro'],ban:['banc','cc','deb','conto']};
-function setTipi(g){f.tipo.innerHTML=GR[g].map(k=>`<option value="${k}">${TIPI[k]}</option>`).join('')}
+const PERS={{ pers|tojson }},CAMPI={{ campi_pers|tojson }},HID=new Set({{ nascosti|tojson }}),BASE={doc:['ci','pass','pat','nau','ts','cf','tess','brev'],ban:['banc','cc','deb','conto']},GR={doc:[],ban:[]},ordTipi=l=>l.sort((a,b)=>TIPI[a].localeCompare(TIPI[b],'it',{sensitivity:'base'})),tuttiG=g=>ordTipi([...BASE[g],...Object.keys(PERS).filter(k=>PERS[k].gruppo==g)]);
+for(const g of ['doc','ban'])GR[g]=tuttiG(g).filter(k=>!HID.has(k));
+function setTipi(g,extra){const l=ordTipi([...GR[g],...(extra&&!GR[g].includes(extra)?[extra]:[])]);f.tipo.innerHTML=l.map(k=>`<option value="${k}">${TIPI[k]}</option>`).join('');return l}
 // ---- codice fiscale ----
 const MCF='ABCDEHLMPRST',DISP={'0':1,'1':0,'2':5,'3':7,'4':9,'5':13,'6':15,'7':17,'8':19,'9':21,A:1,B:0,C:5,D:7,E:9,F:13,G:15,H:17,I:19,J:21,K:2,L:4,M:18,N:20,O:11,P:3,Q:6,R:8,S:12,T:14,U:16,V:10,W:22,X:25,Y:24,Z:23};
 const nrm=t=>(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z]/g,'');
@@ -260,8 +307,32 @@ function verificaCF(){
  const g=+cod.slice(9,11).replace(/[LMNPQRSTUV]/g,c=>DIG[c]);
  if(!((g>=1&&g<=31)||(g>=41&&g<=71)))return 'Il giorno di nascita nel codice fiscale non è valido.';
  return ''}
-function ibanOk(v){v=(v||'').replace(/\s+/g,'').toUpperCase();if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(v))return false;if(v.startsWith('IT')&&v.length!=27)return false;
- let r=0;for(const ch of v.slice(4)+v.slice(0,4)){const n=/\d/.test(ch)?ch:String(ch.charCodeAt(0)-55);for(const c of n)r=(r*10+ +c)%97}return r==1}
+const LUN={IT:27,SM:27,FR:27,DE:22,ES:24,GB:22,CH:21,NL:18,BE:16,AT:20,PT:25,LU:20,IE:22,VA:22},CINT=[1,0,5,7,9,13,15,17,19,21,2,4,18,20,11,3,6,8,12,14,16,10,22,25,24,23];
+function cinIT(b){let s=0;for(let i=0;i<b.length;i++){const c=b[i],n=/\d/.test(c)?+c:c.charCodeAt(0)-65;s+=i%2==0?CINT[n]:n}return String.fromCharCode(65+s%26)}
+function mod97(s){let r=0;for(const ch of s.slice(4)+s.slice(0,4)){const n=/\d/.test(ch)?ch:String(ch.charCodeAt(0)-55);for(const c of n)r=(r*10+ +c)%97}return r}
+// errori dell'IBAN durante la digitazione (struttura italiana: IT + 2 cifre controllo + CIN + ABI 5 + CAB 5 + conto 12)
+function ibanErr(raw){
+ const s=(raw||'').replace(/\s+/g,'').toUpperCase(),bad=[...s].find(c=>!/^[A-Z0-9]$/.test(c));let m='';
+ if(bad)m="Carattere non valido «"+bad+"»: l'IBAN contiene solo lettere e cifre.";
+ else if(s.slice(0,2)&&!/^[A-Z]+$/.test(s.slice(0,2)))m='Le prime 2 posizioni sono il codice paese e devono essere lettere (ad esempio IT).';
+ else if(s.slice(2,4)&&!/^\d+$/.test(s.slice(2,4)))m="Le posizioni 3-4 sono le cifre di controllo dell'IBAN: devono essere 2 numeri.";
+ else if(s.slice(0,2)=='IT'){
+  if(s.slice(4,5)&&!/[A-Z]/.test(s[4]))m='La posizione 5 è il CIN (codice di controllo nazionale): deve essere una lettera.';
+  else if(s.slice(5,10)&&!/^\d+$/.test(s.slice(5,10)))m='Le posizioni 6-10 sono il codice ABI (la banca): devono essere 5 cifre.';
+  else if(s.slice(10,15)&&!/^\d+$/.test(s.slice(10,15)))m='Le posizioni 11-15 sono il codice CAB (la filiale): devono essere 5 cifre.';
+  else if(s.length>27)m='Un IBAN italiano ha 27 caratteri: ce ne sono troppi.';
+  else if(s.length==27){if(cinIT(s.slice(5))!=s[4])m='Il CIN (posizione 5) non corrisponde ai codici ABI, CAB e al numero di conto: controlla di averli scritti giusti.';else if(mod97(s)!=1)m="L'IBAN non è valido: le cifre di controllo (posizioni 3-4) non tornano."}
+ }else if(s.length>=2){const att=LUN[s.slice(0,2)];
+  if(s.length>34)m='Un IBAN ha al massimo 34 caratteri.';
+  else if(att&&s.length>att)m='Un IBAN '+s.slice(0,2)+' ha '+att+' caratteri: ce ne sono troppi.';
+  else if(s.length>=(att||15)&&mod97(s)!=1)m="L'IBAN non è valido: le cifre di controllo (posizioni 3-4) non tornano."}
+ const compl=s.slice(0,2)=='IT'?s.length==27:(s.length>=(LUN[s.slice(0,2)]||15)&&s.length<=(LUN[s.slice(0,2)]||34));
+ return {msg:m,ok:!m&&compl&&s.length>=15}}
+function fmtIban(el){
+ const pos=el.selectionStart,prima=el.value.slice(0,pos).replace(/\s/g,'').length,raw=el.value.toUpperCase().replace(/\s+/g,'');
+ const v=/^[A-Z0-9]*$/.test(raw)?raw.replace(/(.{4})(?=.)/g,'$1 '):raw;el.value=v;
+ let n=0,i=0;if(prima>0)for(;i<v.length&&n<prima;i++)if(v[i]!=' ')n++;try{el.setSelectionRange(i,i)}catch(e){}}
+[f.iban,f.c_iban].forEach(el=>el.addEventListener('input',()=>fmtIban(el)));
 const NOMEOK=/^[\p{L}][\p{L}' .\-]*$/u;
 // ogni controllo ritorna null (ok) oppure [messaggio, campo, mostraSubito]; il campo vuoto blocca il Salva senza messaggio
 const meseKo=el=>el.type=='text'&&!el.closest('[hidden]')&&el.value.replace(/\D/g,'').length>=2&&!/^(0[1-9]|1[0-2])/.test(el.value);
@@ -274,6 +345,16 @@ function problema(){
  const t=f.tipo.value,v=n=>f[n].value.trim(),carta=t=='banc'||t=='cc'||t=='deb',conto=t=='conto';
  const vuoto=n=>[null,f[n]];
  if(futuraRil())return [msgFutura(),f.rilascio,true];
+ if(!$('#wIban').hidden){const e=ibanErr(f.iban.value);if(e.msg)return [e.msg,f.iban,true]}
+ if(!$('#wNuovoC').hidden){const e=ibanErr(f.c_iban.value);if(e.msg)return [e.msg,f.c_iban,true]}
+ const cu=PERS[t];
+ if(cu){const c=cu.campi,R=k=>c[k]=='o';
+  for(const [k,n] of [['nome','nome_p'],['cognome','cognome_p']])if(c[k]){if(!v(n)){if(R(k))return vuoto(n)}else if(!NOMEOK.test(v(n)))return [(k=='nome'?'Il nome':'Il cognome')+' contiene caratteri non validi: usa solo lettere.',f[n]]}
+  for(const [k,n] of [['numero','numero'],['ente','ente'],['rilascio','rilascio'],['scadenza','scadenza'],['nota','nota']])if(R(k)&&!v(n))return vuoto(n);
+  if(c.rilascio&&c.scadenza&&v('rilascio')&&v('scadenza')&&v('rilascio')>v('scadenza'))return ['La data di rilascio è successiva alla scadenza.',f.rilascio,true];
+  if(c.iban){const e=ibanErr(f.iban.value);if(R('iban')&&!e.ok||v('iban')&&!e.ok)return vuoto('iban')}
+  if(c.immagine&&R('immagine')&&$('#pvImg').hidden)return [null,fImg];
+  return null}
  if(carta){for(const el of [f.scadenza,f.rilascio])if(meseKo(el))return ['Mese non valido: usa un numero da 01 a 12 (ad esempio 05/28).',el,true]}
  if(t=='altro'&&!v('titolo'))return vuoto('titolo');
  if(!v('nome_p'))return vuoto('nome_p');
@@ -284,21 +365,23 @@ function problema(){
  if(carta||conto||t=='pat'||t=='pass'){if(!v('ente'))return vuoto('ente')}
  if((t=='pat'||t=='pass')&&!v('rilascio'))return vuoto('rilascio');
  if(t=='pat'&&v('codici')&&!/^[0-9A-Za-z.,+\/() -]+$/.test(v('codici')))return ['I codici possono contenere solo numeri, lettere, virgole e spazi (ad esempio 01, 78).',f.codici]
- if(conto){if(!v('iban'))return vuoto('iban');if(!ibanOk(f.iban.value))return ["L'IBAN non è valido: controlla di averlo scritto giusto.",f.iban,f.iban.value.replace(/\s+/g,'').length>=15]}
+ if(conto){if(!ibanErr(f.iban.value).ok)return vuoto('iban')}
  else{
   const n=f.numero.value.replace(/[\s.-]/g,'');
   if(carta){if(!n)return vuoto('numero');if(!/^\d{12,19}$/.test(n))return ['Il numero della carta deve avere da 12 a 19 cifre.',f.numero,n.length>=12]}
+  else if(t=='tess'||t=='brev'){if(!v('numero'))return vuoto('numero');
+   if(v('rilascio')&&v('scadenza')&&v('rilascio')>v('scadenza'))return ['La data di emissione è successiva alla scadenza.',f.rilascio,true]}
   else if(t=='nau'){if(!v('numero'))return vuoto('numero');if(!/^[A-Z]{2} \d{6,7}$/.test(v('numero')))return ['Il numero identificativo è formato da 2 lettere e 6-7 cifre, ad esempio AA 0123456.',f.numero,v('numero').length>=9];
    if(!v('numero2'))return vuoto('numero2');if(!/^\d{4}$/.test(v('numero2')))return ['Il numero di patente è di 4 cifre, ad esempio 1234.',f.numero2];
    if(!v('ente'))return vuoto('ente');if(!v('rilascio'))return vuoto('rilascio')}
   else if(t!='altro'){if(!v('numero'))return vuoto('numero');if(!/^[A-Za-z0-9][A-Za-z0-9 \/.\-]{3,29}$/.test(v('numero')))return ['Il numero del documento non sembra valido (almeno 4 caratteri, solo lettere, cifre e simboli semplici).',f.numero]}
-  if(t!='altro'&&!v('scadenza'))return vuoto('scadenza');
+  if(t!='altro'&&t!='tess'&&t!='brev'&&!v('scadenza'))return vuoto('scadenza');
   if(carta&&!/^(0[1-9]|1[0-2])\/\d{2}$/.test(v('scadenza')))return ['Scrivi la scadenza come sulla carta: mese e anno, ad esempio 05/28.',f.scadenza,v('scadenza').length>=5];
   if(carta&&v('rilascio')){const ma=s=>s.slice(3)+s.slice(0,2);
    if(!/^(0[1-9]|1[0-2])\/\d{2}$/.test(v('rilascio')))return ["Scrivi l'emissione come sulla carta: mese e anno, ad esempio 05/23.",f.rilascio,v('rilascio').length>=5];
    if(/^(0[1-9]|1[0-2])\/\d{2}$/.test(v('scadenza'))&&ma(v('rilascio'))>ma(v('scadenza')))return ["La data di emissione è successiva alla scadenza.",f.rilascio,true]}
   if(!carta&&!$('#wRil').hidden&&v('rilascio')&&v('scadenza')&&v('rilascio')>v('scadenza'))return ['La data di rilascio è successiva alla scadenza.',f.rilascio,true];
-  if(carta&&!$('#wNuovoC').hidden&&v('c_iban')&&!ibanOk(f.c_iban.value))return ["L'IBAN del conto non è valido.",f.c_iban,f.c_iban.value.replace(/\s+/g,'').length>=15];
+  if(carta&&!$('#wNuovoC').hidden&&v('c_iban')&&!ibanErr(f.c_iban.value).ok)return vuoto('c_iban');
  }
  return null}
 function valida(){
@@ -318,7 +401,7 @@ function chiediDup(d,datipo){dupDaTipo=datipo;
 $('#dupOk').onchange=()=>{$('#dupSi').disabled=!$('#dupOk').checked};
 $('#dupSi').onclick=()=>{ackTipo=f.tipo.value;f.forza.value='1';dDup.close('si');if(!dupDaTipo)f.requestSubmit(f.querySelector('button[type=submit]'))};
 $('#dupNo').onclick=()=>dDup.close('no');
-dDup.addEventListener('close',()=>{if(dDup.returnValue!=='si'){if(dupDaTipo){if(aperturaDup){const libero=[...f.tipo.options].map(x=>x.value).find(k=>!UNICI.includes(k)||!document.querySelector(`.dt[data-d*='"tipo": "${k}"'],.dt[data-d*='"tipo":"${k}"']`));f.tipo.value=libero||f.tipo.options[f.tipo.options.length-1].value;prevTipo=f.tipo.value}else if(prevTipo)f.tipo.value=prevTipo;adatta();valida()}aperturaDup=false;}dDup.returnValue=''});
+dDup.addEventListener('close',()=>{if(dDup.returnValue!=='si'){if(dupDaTipo){if(aperturaDup){const libero=[...f.tipo.options].map(x=>x.value).find(k=>k!='altro'&&(!UNICI.includes(k)||!document.querySelector(`.dt[data-d*='"tipo": "${k}"'],.dt[data-d*='"tipo":"${k}"']`)));f.tipo.value=libero||f.tipo.options[f.tipo.options.length-1].value;prevTipo=f.tipo.value}else if(prevTipo)f.tipo.value=prevTipo;adatta();valida()}aperturaDup=false;}dDup.returnValue=''});
 f.tipo.addEventListener('change',()=>{const d=esistente();if(d)chiediDup(d,true);else{prevTipo=f.tipo.value;if(ackTipo!==f.tipo.value)f.forza.value='0'}});
 f.addEventListener('submit',e=>{const d=esistente();if(d){e.preventDefault();e.stopImmediatePropagation();chiediDup(d,false)}},true);
 // carta d'identità: scadenza = compleanno nel decimo anno dopo il rilascio
@@ -369,10 +452,49 @@ function fmtCarta(el){
  try{el.setSelectionRange(i,i)}catch(e){}}
 f.numero.addEventListener('input',()=>{if(èCarta())fmtCarta(f.numero);mkAgg()});
 f.tipo.addEventListener('change',()=>{if(èCarta()&&f.numero.value)fmtCarta(f.numero)});
+// ---- impostazioni: nuovi tipi nei menu a tendina ----
+const dImp=$('#dImp'),fImp=$('#fImp'),GRN={doc:'Documenti',ban:'Carte e dati bancari'};
+function impValida(){impColori();const ok=fImp.nome.value.trim()&&Object.keys(CAMPI).some(k=>fImp['usa_'+k].checked);$('#impSalva').disabled=!ok;
+ Object.keys(CAMPI).forEach(k=>{fImp['req_'+k].disabled=!fImp['usa_'+k].checked})}
+function impIban(){const r=fImp.querySelector('.impr[data-k=iban]'),ok=fImp.gruppo.value=='ban';r.hidden=!ok;if(!ok){fImp.usa_iban.checked=false;fImp.usa_iban.dispatchEvent(new Event('change',{bubbles:true}))}}
+fImp.gruppo.addEventListener('change',impIban);
+function impReset(){fImp.reset();fImp.id.value='';$('#impT').textContent='Nuovo tipo';$('#impNuovo').hidden=true;impIban();impValida()}
+function frm(az,chiave,testo,cls,conf){const fm=document.createElement('form');fm.method='post';fm.action=az;fm.style.margin='0';
+ if(conf)fm.onsubmit=()=>confirm(conf);fm.innerHTML='<input type="hidden" name="_t" value="'+fImp._t.value+'"><input type="hidden" name="chiave" value="'+chiave+'"><button type="submit" class="'+cls+'"></button>';fm.querySelector('button').textContent=testo;return fm}
+function impLista(){
+ const L=$('#impLista');L.innerHTML='';
+ for(const g of ['doc','ban']){
+  const titolo=document.createElement('b');titolo.textContent=GRN[g];titolo.style.display='block';titolo.style.margin='8px 0 2px';L.append(titolo);
+  const vis=tuttiG(g).filter(k=>!HID.has(k));
+  if(!vis.length){const p=document.createElement('p');p.className='mu';p.style.cssText='margin:0;font-size:14px';p.textContent='Nessuna voce nel menu.';L.append(p)}
+  vis.forEach(k=>{const v=PERS[k],r=document.createElement('div');r.className='ir';
+   r.innerHTML='<div><b></b><small></small></div>';r.querySelector('b').textContent=TIPI[k];
+   r.querySelector('small').textContent=v?'Creata da te · '+Object.entries(v.campi).map(([c,q])=>CAMPI[c]+(q=='o'?' *':'')).join(', '):'Voce standard';
+   r.append(frm('/documenti/tipi/nascondi',k,'Rimuovi','del','Rimuovere «'+TIPI[k]+'» dal menu? I documenti già inseriti restano.'));L.append(r)})}
+ const nas=[...HID].filter(k=>TIPI[k]&&k!='altro');
+ if(nas.length){const t=document.createElement('b');t.textContent='Voci rimosse dal menu';t.style.cssText='display:block;margin:14px 0 2px';L.append(t);
+  nas.forEach(k=>{const v=PERS[k],r=document.createElement('div');r.className='ir';r.innerHTML='<div><b></b><small></small></div>';r.querySelector('b').textContent=TIPI[k];r.querySelector('small').textContent=GRN[v?v.gruppo:(BASE.ban.includes(k)?'ban':'doc')];
+   r.append(frm('/documenti/tipi/ripristina',k,'Ripristina','mod'));
+   if(v){const fm=document.createElement('form');fm.method='post';fm.action='/documenti/tipi/'+v.id+'/elimina';fm.style.margin='0';fm.onsubmit=()=>confirm('Eliminare definitivamente «'+v.nome+'»?');fm.innerHTML='<input type="hidden" name="_t" value="'+fImp._t.value+'"><button type="submit" class="del">Elimina</button>';r.append(fm)}
+   L.append(r)})}}
+const IMPT={menu:'Impostazioni dei tipi',add:'Aggiungi o modifica voci',rem:'Rimuovi voci'};
+function impVai(v){['menu','add','rem'].forEach(x=>$('#imp'+x[0].toUpperCase()+x.slice(1)).hidden=x!=v);$('#impTit').textContent=IMPT[v];$('#impBack').hidden=v=='menu';dImp.scrollTop=0}
+$('#impBack').onclick=()=>impVai('menu');
+dImp.querySelectorAll('[data-vai]').forEach(b=>b.onclick=()=>impVai(b.dataset.vai));
+// colori: verde = facoltativo, giallo/arancio = obbligatorio
+function impColori(){Object.keys(CAMPI).forEach(k=>{const r=fImp['usa_'+k].closest('.impr'),on=fImp['usa_'+k].checked;r.classList.toggle('on-f',on&&fImp['req_'+k].value=='f');r.classList.toggle('on-o',on&&fImp['req_'+k].value=='o')})}
+function impApri(){impReset();impLista();const tot=[...tuttiG('doc'),...tuttiG('ban')],nas=tot.filter(k=>HID.has(k)).length;$('#impRemN').textContent=nas?nas+(nas==1?' voce rimossa dai menu':' voci rimosse dai menu')+' · ripristinabili':'Togli voci dai menu o ripristinale';impVai('menu');dImp.showModal()}
+$('#impTipi').onclick=impApri;
+$('#impNuovo').onclick=impReset;
+fImp.addEventListener('input',impValida);fImp.addEventListener('change',impValida);
+dImp.addEventListener('click',e=>{if(e.target===dImp)dImp.close()});
+// ---- fine impostazioni ----
 function modulo(o){ackTipo=null;
- const gr=o.tipo?(GR.ban.includes(o.tipo)?'ban':'doc'):(o.gruppo||'doc');
+ const gr=o.tipo?(tuttiG('ban').includes(o.tipo)?'ban':'doc'):(o.gruppo||'doc');
  f.reset();$('#fErr').hidden=true;f.scadenza.type='date';f.rilascio.type='date';apriNC(false);$('#cfCalc').hidden=true;luoghi={};anteprima(o.has_img?'/documenti/'+o.id+'/immagine':null);
- setTipi(gr);f.id.value=o.id||'';f.tipo.value=o.tipo||GR[gr][0];adatta();
+ const elenco=setTipi(gr,o.tipo);
+ if(!elenco.length){impApri();return}
+ f.id.value=o.id||'';f.tipo.value=o.tipo||(elenco.includes(gr=='doc'?'ci':'banc')?(gr=='doc'?'ci':'banc'):elenco[0]);adatta();
  f.titolo.value=o.titolo||'';{let n=o.nome_p,c=o.cognome_p;if(!n&&!c&&o.intestatario){const w=o.intestatario.trim().split(/\s+/);n=w.shift();c=w.join(' ')}f.nome_p.value=n||'';f.cognome_p.value=c||''}f.numero.value=o.numero||'';if(['banc','cc','deb'].includes(o.tipo))fmtCarta(f.numero);mkAgg();f.ente.value=o.ente||'';f.iban.value=iban4(o.iban);
  {const ma=s=>s?s.slice(5,7)+'/'+s.slice(2,4):'',tx=f.scadenza.type=='text';f.rilascio.value=tx?ma(o.rilascio):(o.rilascio||'');f.scadenza.value=tx?ma(o.scadenza):(o.scadenza||'')}f.nota.value=o.nota||'';f.codici.value=o.codici||'';f.numero2.value=o.numero2||'';f.conto_id.value=o.conto_id||'';
  $('#tDoc').textContent=o.id?'Modifica '+(gr=='ban'?'carta / dato bancario':'documento'):gr=='ban'?'Nuova carta / dato bancario':'Nuovo documento';
@@ -433,12 +555,12 @@ document.querySelectorAll('.dt').forEach(t=>t.addEventListener('click',()=>{
  $('#detArt').innerHTML=t.querySelector('.art').innerHTML;$('#detT').textContent=o.titolo;$('#detL').innerHTML='';
  const carta=o.tipo=='banc'||o.tipo=='cc'||o.tipo=='deb';
  riga('Tipo',TIPI[o.tipo]);riga('Intestatario',o.intestatario);
- riga(carta?'Numero carta':o.tipo=='conto'?'Numero conto':o.tipo=='cf'?'Codice fiscale':o.tipo=='ts'?'Numero identificazione tessera':o.tipo=='nau'?'Numero identificativo':o.tipo=='pass'?'Passaporto n°':'Numero',carta?o.numero.replace(/\s+/g,'').replace(/(.{4})/g,'$1 ').trim():o.numero,o.numero?o.numero.replace(/\s+/g,''):'');
+ riga(carta?'Numero carta':o.tipo=='conto'?'Numero conto':o.tipo=='cf'?'Codice fiscale':o.tipo=='ts'?'Numero identificazione tessera':o.tipo=='nau'?'Numero identificativo':o.tipo=='pass'?'Passaporto n°':o.tipo=='tess'?'Tessera n°':o.tipo=='brev'?'Brevetto n°':'Numero',carta?o.numero.replace(/\s+/g,'').replace(/(.{4})/g,'$1 ').trim():o.numero,o.numero?o.numero.replace(/\s+/g,''):'');
  riga('IBAN',iban4(o.iban),o.iban);
  if(o.conto){riga('Conto associato',o.conto.titolo);riga('Intestatario conto',o.conto.intestatario);riga('IBAN conto',iban4(o.conto.iban),o.conto.iban);riga('Numero conto',o.conto.numero,o.conto.numero)}
  if(o.carte&&o.carte.length)riga('Carte associate',o.carte.join(', '));
  riga(carta||o.tipo=='conto'?'Banca':o.tipo=='ci'?'Rilasciato da (comune)':o.tipo=='pat'?'Rilasciata da (motorizzazione)':o.tipo=='nau'?'Rilasciata da':o.tipo=='pass'?'Rilasciato da (Autorità)':o.tipo=='ts'?'Numero identificazione istituzione':'Rilasciato da',o.ente);
- if(carta)riga('Emessa il',o.rilascio?o.rilascio.slice(5,7)+'/'+o.rilascio.slice(2,4):'');else if(o.tipo!='ts')riga(o.tipo=='nau'?'Rilasciata il':'Rilasciato il',dIt(o.rilascio));
+ if(carta)riga('Emessa il',o.rilascio?o.rilascio.slice(5,7)+'/'+o.rilascio.slice(2,4):'');else if(o.tipo!='ts')riga(o.tipo=='nau'?'Rilasciata il':o.tipo=='tess'||o.tipo=='brev'?'Emessa il':'Rilasciato il',dIt(o.rilascio));
  if(o.scadenza){const g=o.giorni;riga(carta?'Scadenza':'Scade il',carta?o.scadenza.slice(5,7)+'/'+o.scadenza.slice(2,4):dIt(o.scadenza));
   riga('Stato',g<0?'Scaduto da '+(-g)+' giorni':g==0?'Scade oggi':'Valido ancora '+g+' giorni')}
  if(o.tipo=='pat')riga('Codici',o.codici);

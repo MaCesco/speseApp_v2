@@ -135,7 +135,20 @@ dialog h2{margin:0 0 14px}
 .nr .nm{flex:1;min-width:0}.nr .nm b{display:block;font-size:16px;overflow-wrap:anywhere}.nr .nm .mu{font-size:14px}
 .nr .imp{flex:0 0 auto;font:800 18px 'Bricolage Grotesque',sans-serif;padding:5px 14px;border-radius:99px;background:color-mix(in srgb,var(--in) 14%,var(--card))}
 .nr .az{flex:0 0 auto;white-space:nowrap}.nr .az .mini{width:auto;padding:4px 12px;min-height:36px;margin-left:4px}
-@media(max-width:700px){.nr{flex-wrap:wrap}.nr .az{margin-left:auto}.kt b{font-size:26px}.sg{grid-template-columns:1fr}}
+.nl{gap:14px}
+.nr{--ac:var(--in);position:relative;gap:18px;padding:14px 18px 14px 14px;border-radius:20px;overflow:hidden;background:linear-gradient(100deg,color-mix(in srgb,var(--ac) 9%,var(--card)),var(--card) 55%)}
+.nr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--ac)}
+.nr.tc{--ac:var(--bgc)}
+.dtb{flex:0 0 78px;padding:10px 0 8px;border-radius:16px;background:linear-gradient(160deg,color-mix(in srgb,var(--ac) 30%,var(--card)),color-mix(in srgb,var(--ac) 12%,var(--card)));border:1px solid color-mix(in srgb,var(--ac) 40%,transparent);margin-left:6px}
+.dtb b{font-size:36px;line-height:1;letter-spacing:-.5px}
+.dtb span{font-size:15px;font-weight:800;letter-spacing:.12em;margin-top:3px;color:var(--ac)}
+.dtb small{display:block;font-size:14px;font-weight:700;color:var(--tx);opacity:.75;margin-top:2px}
+.nr .nm b{font-size:21px;font-weight:800;line-height:1.25}
+.nr .nm .mu{font-size:16px;margin-top:3px}
+.nr .imp{font-size:24px;padding:8px 18px;background:color-mix(in srgb,var(--ac) 20%,var(--card));border:1px solid color-mix(in srgb,var(--ac) 35%,transparent)}
+.nr .az .mini{min-height:42px;font-size:15px;border-radius:12px}
+.nr:hover{transform:translateY(-2px)}
+@media(max-width:700px){.nr{flex-wrap:wrap;gap:12px}.dtb{flex-basis:68px}.dtb b{font-size:30px}.nr .nm{flex-basis:calc(100% - 100px)}.nr .imp{font-size:21px}.nr .az{margin-left:auto}.kt b{font-size:26px}.sg{grid-template-columns:1fr}}
 </style>
 
 <div class="row hd{{ ' nv' if vista != 'scad' }}"><h1 class="ph">{% from "_ic.html" import ic %}{{ ic('scad' if vista == 'scad' else 'agenda') }}{{ 'Scadenze' if vista == 'scad' else 'Agenda' }}</h1>{% if vista == 'sett' %}<div style="display:flex;gap:8px;flex:0 0 auto;min-width:0"><a class="x" href="/agenda?vista=sett&data={{ prec }}">← Precedente</a><a class="x" href="/agenda?vista=sett&data={{ succ }}">Successiva →</a></div>{% elif vista == 'mese' %}<div style="display:flex;gap:8px;flex:0 0 auto;min-width:0"><a class="x" href="/agenda?vista=mese&data={{ prec }}">← {{ nome_prec }}</a><a class="x" href="/agenda?vista=mese&data={{ succ }}">{{ nome_succ }} →</a></div>{% endif %}</div>
